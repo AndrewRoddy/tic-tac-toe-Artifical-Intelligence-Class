@@ -7,5 +7,6 @@ pub mod board;
 pub mod dataset;
 pub mod learn;
 pub mod outcome;
+pub mod random;
 pub mod search;
 pub mod solver;

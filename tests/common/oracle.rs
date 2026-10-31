@@ -6,6 +6,26 @@ use c4::outcome::Outcome;
 
 pub type Cells = HashSet<(i64, i64)>;
 
+#[derive(Clone, Default)]
+pub struct Partial {
+    pub stones: [Cells; 2],
+    pub heights: HashMap<i64, i64>,
+}
+
+impl Partial {
+    #[must_use]
+    pub fn cell(&self, column: u32) -> (i64, i64) {
+        let row = self.heights.get(&i64::from(column)).copied().unwrap_or(0);
+        (i64::from(column), row)
+    }
+
+    pub fn place(&mut self, side: usize, column: u32) {
+        let cell = self.cell(column);
+        self.stones[side].insert(cell);
+        self.heights.insert(i64::from(column), cell.1 + 1);
+    }
+}
+
 #[must_use]
 pub fn grid_wins(own: &Cells, (column, row): (i64, i64)) -> bool {
     let run = |(dcol, drow): (i64, i64)| {

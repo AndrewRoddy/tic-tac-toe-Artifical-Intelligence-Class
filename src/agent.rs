@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use crate::board::{Board, Geometry};
 use crate::outcome::Outcome;
+use crate::random::{SplitMix, pick};
 use crate::search::{self, Weights};
 use crate::solver::Solver;
 
@@ -56,5 +57,28 @@ impl<G: Geometry> Agent<G> for AlphaBeta {
     fn choose(&mut self, board: Board<G>, deadline: Instant) -> u32 {
         debug_assert!(board.playable().next().is_some());
         search::best_column(board, self.max_depth, deadline, self.weights).unwrap_or(0)
+    }
+}
+
+pub struct SafeRandom {
+    rng: SplitMix,
+}
+
+impl SafeRandom {
+    #[must_use]
+    pub const fn new(seed: u64) -> Self {
+        Self {
+            rng: SplitMix::new(seed),
+        }
+    }
+}
+
+impl<G: Geometry> Agent<G> for SafeRandom {
+    fn choose(&mut self, board: Board<G>, _deadline: Instant) -> u32 {
+        debug_assert!(board.playable().next().is_some());
+        pick(&mut self.rng, board, |col| board.wins(col))
+            .or_else(|| pick(&mut self.rng, board, |col| board.opponent_wins(col)))
+            .or_else(|| pick(&mut self.rng, board, |_| true))
+            .unwrap_or(0)
     }
 }

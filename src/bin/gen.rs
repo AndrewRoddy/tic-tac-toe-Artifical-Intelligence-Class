@@ -4,7 +4,8 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use c4::board::{B87, Geometry, format_moves};
-use c4::dataset::{SplitMix, sample};
+use c4::dataset::sample;
+use c4::random::SplitMix;
 
 const USAGE: &str = "usage: gen <count> <min_stones> <max_stones> <seed>";
 

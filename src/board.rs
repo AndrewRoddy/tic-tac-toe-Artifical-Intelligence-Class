@@ -82,6 +82,11 @@ impl<G: Geometry> Board<G> {
         Self::winning_cells(self.current, self.mask) & self.spot(col) != G::Bits::ZERO
     }
 
+    pub fn opponent_wins(&self, col: u32) -> bool {
+        debug_assert!(self.can_play(col));
+        Self::winning_cells(self.mask ^ self.current, self.mask) & self.spot(col) != G::Bits::ZERO
+    }
+
     pub fn can_win(&self) -> bool {
         Self::winning_cells(self.current, self.mask) & self.playable_cells() != G::Bits::ZERO
     }

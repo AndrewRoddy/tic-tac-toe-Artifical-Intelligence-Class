@@ -2,11 +2,12 @@ use std::collections::{BTreeSet, HashMap};
 use std::ops::RangeInclusive;
 
 use c4::board::{Board, Geometry, Grid, format_moves};
-use c4::dataset::{SplitMix, sample};
+use c4::dataset::sample;
+use c4::random::SplitMix;
 
 #[path = "common/oracle.rs"]
 pub mod oracle;
-use oracle::{Cells, grid_wins};
+use oracle::{Cells, Partial, grid_wins};
 
 const SEEDS: u64 = 2_000;
 const STONES: RangeInclusive<usize> = 1..=20;
@@ -15,31 +16,14 @@ const SMALL_STONES: RangeInclusive<usize> = 1..=4;
 
 type Key = (Vec<(i64, i64)>, Vec<(i64, i64)>);
 
-#[derive(Clone, Default)]
-struct Partial {
-    stones: [Cells; 2],
-    heights: HashMap<i64, i64>,
-}
-
-impl Partial {
-    fn child<G: Geometry>(&self, mover: usize, column: u32) -> Option<Self> {
-        let height = self.heights.get(&i64::from(column)).copied().unwrap_or(0);
-        let cell = (i64::from(column), height);
-        if height == i64::from(G::ROWS) || grid_wins(&self.stones[mover], cell) {
-            return None;
-        }
-        let mut child = self.clone();
-        child.stones[mover].insert(cell);
-        child.heights.insert(i64::from(column), height + 1);
-        (!has_winning_cell::<G>(&child.stones[1 - mover], &child.heights)).then_some(child)
+fn child_of<G: Geometry>(position: &Partial, mover: usize, column: u32) -> Option<Partial> {
+    let cell = position.cell(column);
+    if cell.1 == i64::from(G::ROWS) || grid_wins(&position.stones[mover], cell) {
+        return None;
     }
-}
-
-fn place(heights: &mut HashMap<i64, i64>, column: u32) -> (i64, i64) {
-    let height = heights.entry(i64::from(column)).or_insert(0);
-    let cell = (i64::from(column), *height);
-    *height += 1;
-    cell
+    let mut next = position.clone();
+    next.place(mover, column);
+    (!has_winning_cell::<G>(&next.stones[1 - mover], &next.heights)).then_some(next)
 }
 
 fn has_winning_cell<G: Geometry>(own: &Cells, heights: &HashMap<i64, i64>) -> bool {
@@ -73,8 +57,7 @@ fn canonical<G: Geometry>(stones: &[Cells; 2]) -> Key {
 fn key_of<G: Geometry>(columns: &[u32]) -> Key {
     let mut position = Partial::default();
     for (step, &column) in columns.iter().enumerate() {
-        let cell = place(&mut position.heights, column);
-        position.stones[step % 2].insert(cell);
+        position.place(step % 2, column);
     }
     canonical::<G>(&position.stones)
 }
@@ -88,12 +71,12 @@ fn check_sample<G: Geometry>(columns: &[u32], board: &Board<G>, stones: usize) {
     let mut position = Partial::default();
     for (step, &column) in columns.iter().enumerate() {
         let mover = step % 2;
-        let cell = place(&mut position.heights, column);
+        let cell = position.cell(column);
         assert!(
             !grid_wins(&position.stones[mover], cell),
             "move {step} wins"
         );
-        position.stones[mover].insert(cell);
+        position.place(mover, column);
         assert!(
             !has_winning_cell::<G>(&position.stones[1 - mover], &position.heights),
             "move {step} allows an immediate win"
@@ -135,7 +118,7 @@ fn extend<G: Geometry>(position: &Partial, placed: usize, depth: usize, found: &
         return;
     }
     for column in 0..G::COLUMNS {
-        if let Some(child) = position.child::<G>(placed % 2, column) {
+        if let Some(child) = child_of::<G>(position, placed % 2, column) {
             extend::<G>(&child, placed + 1, depth, found);
         }
     }
