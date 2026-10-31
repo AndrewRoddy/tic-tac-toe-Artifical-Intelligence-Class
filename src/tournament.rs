@@ -1,3 +1,4 @@
+use std::f64::consts::LN_10;
 use std::ops::ControlFlow;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Sender};
@@ -8,11 +9,15 @@ use crate::agent::{Agent, AlphaBeta, Perfect, SafeRandom};
 use crate::arena::play;
 use crate::board::{Board, Geometry};
 use crate::dataset::Sample;
+use crate::learn::{Row, fit};
 use crate::outcome::Outcome;
 use crate::search::Weights;
 
 const HALF_POINTS_PER_WIN: u32 = 2;
 const HALF_POINTS_PER_DRAW: u32 = 1;
+const ELO_SCALE: f64 = 400.0;
+const ANCHOR: Entrant = Entrant::SafeRandom;
+const ELO_PER_LOGIT: f64 = ELO_SCALE / LN_10;
 
 pub const ROSTER: [Entrant; 4] = [
     Entrant::SafeRandom,
@@ -216,4 +221,70 @@ fn credit(table: &mut [Standing], entrant: Entrant, outcome: Outcome) {
     {
         standing.add(outcome);
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Rating {
+    pub entrant: Entrant,
+    pub elo: f64,
+}
+
+#[must_use]
+pub fn elo_ratings(roster: &[Entrant], records: &[Record]) -> Option<Vec<Rating>> {
+    let anchor = index_of(roster, ANCHOR)?;
+    let model = fit(&elo_rows(roster, records, anchor))?;
+    let mut logits = model.weights;
+    logits.insert(anchor, 0.0);
+    Some(
+        roster
+            .iter()
+            .zip(logits)
+            .map(|(&entrant, logit)| Rating {
+                entrant,
+                elo: ELO_PER_LOGIT * logit,
+            })
+            .collect(),
+    )
+}
+
+fn index_of(roster: &[Entrant], entrant: Entrant) -> Option<usize> {
+    roster.iter().position(|&listed| listed == entrant)
+}
+
+fn elo_rows(roster: &[Entrant], records: &[Record], anchor: usize) -> Vec<Row> {
+    let width = roster.len() - 1;
+    let mut rows = Vec::new();
+    for record in records {
+        let (Some(first), Some(second)) = (
+            index_of(roster, record.first),
+            index_of(roster, record.second),
+        ) else {
+            continue;
+        };
+        let mut inputs = vec![0.0; width];
+        add_seat(&mut inputs, first, anchor, 1.0);
+        add_seat(&mut inputs, second, anchor, -1.0);
+        rows.push(Row {
+            inputs,
+            outcome: record.outcome,
+        });
+    }
+    for index in (0..roster.len()).filter(|&index| index != anchor) {
+        let mut inputs = vec![0.0; width];
+        add_seat(&mut inputs, index, anchor, 1.0);
+        rows.push(Row {
+            inputs,
+            outcome: Outcome::Draw,
+        });
+    }
+    rows
+}
+
+fn add_seat(inputs: &mut [f64], index: usize, anchor: usize, sign: f64) {
+    if index == anchor {
+        return;
+    }
+    let column = if index < anchor { index } else { index - 1 };
+    debug_assert!(column < inputs.len());
+    inputs[column] += sign;
 }

@@ -49,10 +49,14 @@ fn run(path: &str) -> Result<(), Box<dyn Error>> {
     let learned_train = rows(train, learned_row);
     let learned_held = rows(held, learned_row);
     let learned = fit_and_print("learned", &learned_train, &learned_held)?;
-    let scaled = learned.weights.map(|weight| (weight * SCALE).round());
+    let scaled: Vec<f64> = learned
+        .weights
+        .iter()
+        .map(|weight| (weight * SCALE).round())
+        .collect();
     println!("shipped integers (x{SCALE}): {scaled:?}");
     let shipped = Model {
-        weights: scaled.map(|weight| weight / SCALE),
+        weights: scaled.iter().map(|weight| weight / SCALE).collect(),
     };
     print_model("shipped (rounded)", &shipped, &learned_train, &learned_held);
     Ok(())
@@ -67,24 +71,17 @@ fn read_samples(path: &str) -> Result<Vec<Labelled<B87>>, Box<dyn Error>> {
     Ok(samples)
 }
 
-fn rows<const K: usize>(
-    samples: &[Labelled<B87>],
-    row: fn(&Labelled<B87>) -> Row<K>,
-) -> Vec<Row<K>> {
+fn rows(samples: &[Labelled<B87>], row: fn(&Labelled<B87>) -> Row) -> Vec<Row> {
     samples.iter().map(row).collect()
 }
 
-fn fit_and_print<const K: usize>(
-    name: &str,
-    train: &[Row<K>],
-    held: &[Row<K>],
-) -> Result<Model<K>, Box<dyn Error>> {
+fn fit_and_print(name: &str, train: &[Row], held: &[Row]) -> Result<Model, Box<dyn Error>> {
     let model = fit(train).ok_or_else(|| format!("{name} fit did not converge"))?;
     print_model(name, &model, train, held);
     Ok(model)
 }
 
-fn print_model<const K: usize>(name: &str, model: &Model<K>, train: &[Row<K>], held: &[Row<K>]) {
+fn print_model(name: &str, model: &Model, train: &[Row], held: &[Row]) {
     let fitted = evaluate(model, train);
     let tested = evaluate(model, held);
     println!("{name}: weights {:?}", model.weights);

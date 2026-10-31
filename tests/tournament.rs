@@ -5,7 +5,9 @@ use std::time::Duration;
 use c4::board::{B76, B98, Board, Geometry};
 use c4::dataset::unique_samples;
 use c4::outcome::Outcome;
-use c4::tournament::{Entrant, ROSTER, Record, Settings, Standing, run, schedule, standings};
+use c4::tournament::{
+    Entrant, ROSTER, Rating, Record, Settings, Standing, elo_ratings, run, schedule, standings,
+};
 
 const SEED: u64 = 7;
 const OPENING_COUNT: usize = 3;
@@ -19,6 +21,14 @@ const SETTINGS: Settings = Settings {
     per_move: PER_MOVE,
     perfect_table_bits: PERFECT_TABLE_BITS,
 };
+const ELO_SCALE: f64 = 400.0;
+const ELO_TOLERANCE: f64 = 0.5;
+const TRANSITIVE_GAMES: u32 = 10_000;
+const TRANSITIVE: [(Entrant, f64); 3] = [
+    (Entrant::SafeRandom, 0.0),
+    (Entrant::Learned, 120.0),
+    (Entrant::Perfect, 310.0),
+];
 
 macro_rules! on_both_widths {
     ($name:ident, $check:ident) => {
@@ -126,16 +136,66 @@ const fn row(entrant: Entrant, [games, wins, draws, losses]: [u32; 4]) -> Standi
     }
 }
 
-#[test]
-fn standings_hand_computed() {
-    let record = |first, second, outcome| Record {
+const fn record(first: Entrant, second: Entrant, outcome: Outcome) -> Record {
+    Record {
         game: 0,
         opening: 0,
         first,
         second,
         outcome,
         moves: Vec::new(),
-    };
+    }
+}
+
+fn repeat(first: Entrant, second: Entrant, outcome: Outcome, count: u32) -> Vec<Record> {
+    (0..count).map(|_| record(first, second, outcome)).collect()
+}
+
+fn fractional(first: Entrant, second: Entrant, score: f64, games: u32) -> Vec<Record> {
+    (0..games)
+        .map(|game| {
+            let outcome = if f64::from(game) + 0.5 < score * f64::from(games) {
+                Outcome::Win
+            } else {
+                Outcome::Loss
+            };
+            record(first, second, outcome)
+        })
+        .collect()
+}
+
+fn expected_score(rating: f64, other: f64) -> f64 {
+    1.0 / (1.0 + 10_f64.powf((other - rating) / ELO_SCALE))
+}
+
+fn transitive_roster() -> Vec<Entrant> {
+    TRANSITIVE.iter().map(|&(entrant, _)| entrant).collect()
+}
+
+fn transitive_records() -> Vec<Record> {
+    let mut records = Vec::new();
+    for (index, &(first, first_elo)) in TRANSITIVE.iter().enumerate() {
+        for &(second, second_elo) in &TRANSITIVE[index + 1..] {
+            let score = expected_score(first_elo, second_elo);
+            records.extend(fractional(first, second, score, TRANSITIVE_GAMES));
+        }
+    }
+    records
+}
+
+fn fit(roster: &[Entrant], records: &[Record]) -> Vec<Rating> {
+    elo_ratings(roster, records).unwrap_or_default()
+}
+
+fn elo_of(ratings: &[Rating], entrant: Entrant) -> f64 {
+    ratings
+        .iter()
+        .find(|rating| rating.entrant == entrant)
+        .map_or(f64::NAN, |rating| rating.elo)
+}
+
+#[test]
+fn standings_hand_computed() {
     let records = [
         record(Entrant::SafeRandom, Entrant::Perfect, Outcome::Win),
         record(Entrant::Perfect, Entrant::SafeRandom, Outcome::Draw),
@@ -151,4 +211,47 @@ fn standings_hand_computed() {
     assert_eq!(table, expected);
     assert!((table[0].points() - 1.5).abs() < f64::EPSILON);
     assert!((table[3].points() - 0.5).abs() < f64::EPSILON);
+}
+
+#[test]
+fn elo_gap_closed_form() {
+    let mut records = repeat(Entrant::Learned, Entrant::SafeRandom, Outcome::Win, 2000);
+    records.extend(repeat(
+        Entrant::Learned,
+        Entrant::SafeRandom,
+        Outcome::Draw,
+        2000,
+    ));
+    let ratings = fit(&[Entrant::SafeRandom, Entrant::Learned], &records);
+    let score = 0.75_f64;
+    let expected = ELO_SCALE * (score / (1.0 - score)).log10();
+    assert!((elo_of(&ratings, Entrant::Learned) - expected).abs() < ELO_TOLERANCE);
+    assert!(elo_of(&ratings, Entrant::SafeRandom).abs() < ELO_TOLERANCE);
+}
+
+#[test]
+fn transitive_recovers_ratings() {
+    let ratings = fit(&transitive_roster(), &transitive_records());
+    for (entrant, elo) in TRANSITIVE {
+        assert!(
+            (elo_of(&ratings, entrant) - elo).abs() < ELO_TOLERANCE,
+            "{entrant:?}"
+        );
+    }
+}
+
+#[test]
+fn wins_losses_closed_form() {
+    let mut records = repeat(Entrant::Learned, Entrant::SafeRandom, Outcome::Win, 100);
+    records.extend(repeat(
+        Entrant::Perfect,
+        Entrant::SafeRandom,
+        Outcome::Loss,
+        100,
+    ));
+    let roster = [Entrant::SafeRandom, Entrant::Learned, Entrant::Perfect];
+    let ratings = fit(&roster, &records);
+    let expected = ELO_SCALE * 201_f64.log10();
+    assert!((elo_of(&ratings, Entrant::Learned) - expected).abs() < ELO_TOLERANCE);
+    assert!((elo_of(&ratings, Entrant::Perfect) + expected).abs() < ELO_TOLERANCE);
 }

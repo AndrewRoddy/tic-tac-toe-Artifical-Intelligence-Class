@@ -31,18 +31,15 @@ fn slice(start: usize, count: usize) -> Result<Vec<Labelled<B87>>, Box<dyn Error
     Ok(samples)
 }
 
-fn rows<const K: usize>(
-    samples: &[Labelled<B87>],
-    row: fn(&Labelled<B87>) -> Row<K>,
-) -> Vec<Row<K>> {
+fn rows(samples: &[Labelled<B87>], row: fn(&Labelled<B87>) -> Row) -> Vec<Row> {
     samples.iter().map(row).collect()
 }
 
-fn shipped() -> Model<5> {
+fn shipped() -> Model {
     let [mover_good, mover_other, opponent_good, opponent_other] =
         Weights::LEARNED.0.map(|weight| f64::from(weight) / SCALE);
     Model {
-        weights: [
+        weights: vec![
             mover_good,
             mover_other,
             opponent_good,

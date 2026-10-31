@@ -9,7 +9,9 @@ use std::time::Duration;
 
 use c4::board::{B98, Board, Geometry, format_moves};
 use c4::dataset::{Sample, unique_samples};
-use c4::tournament::{ROSTER, Record, Settings, Standing, run, schedule, standings};
+use c4::tournament::{
+    ROSTER, Rating, Record, Settings, Standing, elo_ratings, run, schedule, standings,
+};
 
 const USAGE: &str = "usage: tournament <openings> <min_stones> <max_stones> <seed> <ms_per_move> <workers> [out.txt]
 workers: physical cores minus one";
@@ -95,7 +97,9 @@ fn execute(request: &Request) -> Result<(), Box<dyn Error>> {
         return Err(error);
     }
     writer.flush()?;
-    print_table(&standings(&ROSTER, &records));
+    let ratings = elo_ratings(&ROSTER, &records)
+        .ok_or("Elo fit failed: roster lacks the anchor or did not converge")?;
+    print_table(&standings(&ROSTER, &records), &ratings);
     Ok(())
 }
 
@@ -134,14 +138,15 @@ fn check_legal(columns: &[u32]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn print_table(table: &[Standing]) {
+fn print_table(table: &[Standing], ratings: &[Rating]) {
     eprintln!(
-        "{:<24}{:>7}{:>7}{:>7}{:>7}{:>8}{:>10}",
-        "entrant", "games", "wins", "draws", "losses", "points", "win rate"
+        "{:<24}{:>7}{:>7}{:>7}{:>7}{:>8}{:>10}{:>8}",
+        "entrant", "games", "wins", "draws", "losses", "points", "win rate", "elo"
     );
-    for standing in table {
+    for (standing, rating) in table.iter().zip(ratings) {
+        debug_assert_eq!(standing.entrant, rating.entrant);
         eprintln!(
-            "{:<24}{:>7}{:>7}{:>7}{:>7}{:>8.1}{:>10.3}",
+            "{:<24}{:>7}{:>7}{:>7}{:>7}{:>8.1}{:>10.3}{:>8.1}",
             standing.entrant.name(),
             standing.games,
             standing.wins,
@@ -149,6 +154,7 @@ fn print_table(table: &[Standing]) {
             standing.losses,
             standing.points(),
             standing.win_rate(),
+            rating.elo,
         );
     }
 }
