@@ -71,6 +71,20 @@ pub fn parse_line<G: Geometry>(line: &str) -> Option<Labelled<G>> {
         .all(|symbol| symbol == '.' || Outcome::from_symbol(symbol).is_some());
     columns_valid.then_some(Labelled { board, result })
 }
+#[must_use]
+pub fn parse_pons<G: Geometry>(line: &str) -> Option<Labelled<G>> {
+    let (moves, score) = line.split_once(' ')?;
+    let points = score.parse::<i32>().ok()?;
+    let result = match points {
+        ..0 => Outcome::Loss,
+        0 => Outcome::Draw,
+        1.. => Outcome::Win,
+    };
+    Some(Labelled {
+        board: Board::from_moves(moves)?,
+        result,
+    })
+}
 
 fn single_char(field: &str) -> Option<char> {
     let mut chars = field.chars();

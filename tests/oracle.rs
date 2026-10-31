@@ -6,6 +6,7 @@ use std::{
 
 use c4::agent::{Agent, Perfect};
 use c4::board::{B76, Board, Geometry, Grid};
+use c4::dataset::parse_pons;
 use c4::outcome::Outcome;
 use c4::solver::Solver;
 
@@ -24,15 +25,13 @@ fn pons_matches_oracle<G: Geometry>() -> Result<(), Box<dyn Error>> {
     let mut memo = HashMap::new();
     let mut solver = Solver::<G>::new(TABLE_BITS);
     for line in PONS.lines() {
-        let (moves, score) = line.split_once(' ').ok_or(line)?;
-        let board = Board::<G>::from_moves(moves).ok_or(line)?;
-        let expected = match score.parse::<i32>()? {
-            ..0 => Outcome::Loss,
-            0 => Outcome::Draw,
-            1.. => Outcome::Win,
-        };
-        assert_eq!(solve(board, &mut memo), expected, "{line}");
-        assert_eq!(solver.solve(board, None), Some(expected), "{line}");
+        let sample = parse_pons::<G>(line).ok_or(line)?;
+        assert_eq!(solve(sample.board, &mut memo), sample.result, "{line}");
+        assert_eq!(
+            solver.solve(sample.board, None),
+            Some(sample.result),
+            "{line}"
+        );
     }
     Ok(())
 }
