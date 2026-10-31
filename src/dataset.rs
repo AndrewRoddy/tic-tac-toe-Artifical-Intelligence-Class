@@ -9,18 +9,12 @@ pub struct Sample<G: Geometry> {
     pub board: Board<G>,
 }
 
-fn is_safe<G: Geometry>(board: Board<G>, col: u32) -> bool {
-    let mut after = board;
-    after.play(col);
-    !after.can_win()
-}
-
 #[must_use]
 pub fn sample<G: Geometry>(rng: &mut SplitMix, stones: usize) -> Option<Sample<G>> {
     let mut board = Board::<G>::default();
     let mut columns = Vec::with_capacity(stones);
     while columns.len() < stones {
-        let col = pick(rng, board, |col| is_safe(board, col))?;
+        let col = pick(rng, board, |col| !board.allows_win(col))?;
         board.play(col);
         columns.push(col);
     }

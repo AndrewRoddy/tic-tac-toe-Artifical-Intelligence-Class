@@ -35,10 +35,10 @@ pub type B98 = Grid<9, 8, u128>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Threats {
-    pub first_good: u32,
-    pub first_other: u32,
-    pub second_good: u32,
-    pub second_other: u32,
+    pub mover_good: u32,
+    pub mover_other: u32,
+    pub opponent_good: u32,
+    pub opponent_other: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -75,6 +75,23 @@ impl<G: Geometry> Board<G> {
         (0..G::COLUMNS).filter(move |&col| self.can_play(col))
     }
 
+    pub fn allows_win(&self, col: u32) -> bool {
+        let mut next = *self;
+        next.play(col);
+        next.can_win()
+    }
+
+    pub fn takes_good_row(&self, col: u32) -> bool {
+        let row = (self.mask & Self::column(col)).count_ones();
+        Self::first_takes_row(row) == self.first_to_move()
+    }
+
+    pub fn centre_order(self) -> impl Iterator<Item = u32> {
+        (0..G::COLUMNS)
+            .map(centre_first::<G>)
+            .filter(move |&col| self.can_play(col))
+    }
+
     pub fn wins(&self, col: u32) -> bool {
         debug_assert!(self.can_play(col));
         Self::winning_cells(self.current, self.mask) & self.spot(col) != G::Bits::ZERO
@@ -106,17 +123,16 @@ impl<G: Geometry> Board<G> {
     pub fn threat_rows(&self) -> Threats {
         let mover = Self::winning_cells(self.current, self.mask);
         let waiting = Self::winning_cells(self.mask ^ self.current, self.mask);
-        let (first, second) = if self.first_to_move() {
-            (mover, waiting)
+        let good = if self.first_to_move() {
+            Self::first_rows()
         } else {
-            (waiting, mover)
+            !Self::first_rows()
         };
-        let first_rows = Self::first_rows();
         Threats {
-            first_good: (first & first_rows).count_ones(),
-            first_other: (first & !first_rows).count_ones(),
-            second_good: (second & !first_rows).count_ones(),
-            second_other: (second & first_rows).count_ones(),
+            mover_good: (mover & good).count_ones(),
+            mover_other: (mover & !good).count_ones(),
+            opponent_good: (waiting & !good).count_ones(),
+            opponent_other: (waiting & good).count_ones(),
         }
     }
 
@@ -220,8 +236,7 @@ pub fn format_moves(columns: &[u32]) -> String {
     columns.iter().map(|col| (col + 1).to_string()).collect()
 }
 
-#[must_use]
-pub const fn centre_first<G: Geometry>(step: u32) -> u32 {
+const fn centre_first<G: Geometry>(step: u32) -> u32 {
     let centre = G::COLUMNS / 2;
     let distance = step.div_ceil(2);
     if step.is_multiple_of(2) {

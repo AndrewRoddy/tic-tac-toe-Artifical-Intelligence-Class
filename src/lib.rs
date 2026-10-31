@@ -9,6 +9,7 @@ pub mod learn;
 pub mod mcts;
 pub mod outcome;
 pub mod random;
+pub mod rules;
 pub mod search;
 pub mod solver;
 pub mod tournament;

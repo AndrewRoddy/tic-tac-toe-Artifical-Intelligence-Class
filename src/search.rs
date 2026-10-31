@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::board::{Board, Geometry, centre_first};
+use crate::board::{Board, Geometry};
 
 const WIN_SCORE: i64 = 1_000_000;
 const DRAW_SCORE: i64 = 0;
@@ -16,21 +16,12 @@ impl Features {
     #[must_use]
     pub fn of<G: Geometry>(board: Board<G>) -> Self {
         let threats = board.threat_rows();
-        if board.first_to_move() {
-            Self([
-                threats.first_good,
-                threats.first_other,
-                threats.second_good,
-                threats.second_other,
-            ])
-        } else {
-            Self([
-                threats.second_good,
-                threats.second_other,
-                threats.first_good,
-                threats.first_other,
-            ])
-        }
+        Self([
+            threats.mover_good,
+            threats.mover_other,
+            threats.opponent_good,
+            threats.opponent_other,
+        ])
     }
 }
 
@@ -77,7 +68,7 @@ fn expired(search: &mut Search) -> bool {
 fn root<G: Geometry>(search: &mut Search, board: Board<G>, depth: u32) -> Option<(i64, u32)> {
     let mut best: Option<(i64, u32)> = None;
     let mut alpha = -INFINITY;
-    for col in ordered(board) {
+    for col in board.centre_order() {
         let node = Node {
             depth,
             alpha,
@@ -104,7 +95,7 @@ fn negamax<G: Geometry>(search: &mut Search, board: Board<G>, node: Node) -> Opt
     }
     let mut best = None;
     let mut alpha = node.alpha;
-    for col in ordered(board) {
+    for col in board.centre_order() {
         let score = reply(search, board, col, Node { alpha, ..node })?;
         best = Some(best.map_or(score, |top: i64| top.max(score)));
         alpha = alpha.max(score);
@@ -127,12 +118,6 @@ fn reply<G: Geometry>(search: &mut Search, board: Board<G>, col: u32, node: Node
         beta: -node.alpha,
     };
     negamax(search, next, child).map(|score| -score)
-}
-
-fn ordered<G: Geometry>(board: Board<G>) -> impl Iterator<Item = u32> {
-    (0..G::COLUMNS)
-        .map(centre_first::<G>)
-        .filter(move |&col| board.can_play(col))
 }
 
 fn evaluate<G: Geometry>(weights: Weights, board: Board<G>) -> i64 {
@@ -161,5 +146,5 @@ pub fn best_column<G: Geometry>(
             break;
         }
     }
-    best.or_else(|| ordered(board).next())
+    best.or_else(|| board.centre_order().next())
 }

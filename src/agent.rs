@@ -4,6 +4,7 @@ use crate::board::{Board, Geometry};
 use crate::mcts::{Budget, Uct};
 use crate::outcome::Outcome;
 use crate::random::{SplitMix, pick};
+use crate::rules;
 use crate::search::{self, Weights};
 use crate::solver::Solver;
 
@@ -110,4 +111,36 @@ impl<G: Geometry> Agent<G> for Mcts<G> {
             )
             .unwrap_or(0)
     }
+}
+
+pub struct Allis<G: Geometry> {
+    left: Option<Board<G>>,
+}
+
+impl<G: Geometry> Default for Allis<G> {
+    fn default() -> Self {
+        Self { left: None }
+    }
+}
+
+impl<G: Geometry> Agent<G> for Allis<G> {
+    fn choose(&mut self, board: Board<G>, _deadline: Instant) -> u32 {
+        debug_assert!(board.playable().next().is_some());
+        let last = self.left.and_then(|left| opponent_move(left, board));
+        let col = rules::choose(board, last).unwrap_or(0);
+        let mut next = board;
+        next.play(col);
+        self.left = Some(next);
+        col
+    }
+}
+
+fn opponent_move<G: Geometry>(left: Board<G>, board: Board<G>) -> Option<u32> {
+    let mut moves = left.playable().filter(|&col| {
+        let mut next = left;
+        next.play(col);
+        next.key() == board.key()
+    });
+    let col = moves.next()?;
+    moves.next().is_none().then_some(col)
 }

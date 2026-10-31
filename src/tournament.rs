@@ -5,7 +5,7 @@ use std::sync::mpsc::{self, Sender};
 use std::thread;
 use std::time::Duration;
 
-use crate::agent::{Agent, AlphaBeta, Mcts, Perfect, SafeRandom};
+use crate::agent::{Agent, Allis, AlphaBeta, Mcts, Perfect, SafeRandom};
 use crate::arena::play;
 use crate::board::{Board, Geometry};
 use crate::dataset::Sample;
@@ -17,12 +17,13 @@ const ELO_SCALE: f64 = 400.0;
 const ANCHOR: Entrant = Entrant::SafeRandom;
 const ELO_PER_LOGIT: f64 = ELO_SCALE / LN_10;
 
-pub const ROSTER: [Entrant; 5] = [
+pub const ROSTER: [Entrant; 6] = [
     Entrant::SafeRandom,
     Entrant::Handcrafted,
     Entrant::Learned,
     Entrant::Perfect,
     Entrant::Mcts,
+    Entrant::Allis,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -32,6 +33,7 @@ pub enum Entrant {
     Learned,
     Perfect,
     Mcts,
+    Allis,
 }
 
 impl Entrant {
@@ -43,6 +45,7 @@ impl Entrant {
             Self::Learned => "alpha-beta-learned",
             Self::Perfect => "perfect",
             Self::Mcts => "mcts",
+            Self::Allis => "allis",
         }
     }
 
@@ -53,6 +56,7 @@ impl Entrant {
             Self::Learned => Box::new(AlphaBeta::new(G::COLUMNS * G::ROWS, Weights::LEARNED)),
             Self::Perfect => Box::new(Perfect::<G>::new(perfect_table_bits)),
             Self::Mcts => Box::new(Mcts::<G>::new(seed)),
+            Self::Allis => Box::new(Allis::<G>::default()),
         }
     }
 }

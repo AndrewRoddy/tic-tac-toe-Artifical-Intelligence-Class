@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use crate::bits::Bits;
-use crate::board::{Board, COLUMN_LIMIT, Geometry, centre_first};
+use crate::board::{Board, COLUMN_LIMIT, Geometry};
 use crate::outcome::Outcome;
 
 const CLOCK_INTERVAL: u64 = 1024;
@@ -166,11 +166,7 @@ fn search<G: Geometry>(
 ) -> Option<Outcome> {
     let mut order = [(0, 0); COLUMN_LIMIT];
     let mut count = 0;
-    for step in 0..G::COLUMNS {
-        let col = centre_first::<G>(step);
-        if !board.can_play(col) {
-            continue;
-        }
+    for col in board.centre_order() {
         let score = board.threat_count_after(col);
         let mut at = count;
         while at > 0 && order[at - 1].0 < score {

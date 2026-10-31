@@ -208,6 +208,7 @@ fn standings_hand_computed() {
         row(Entrant::Learned, [1, 1, 0, 0]),
         row(Entrant::Perfect, [2, 0, 1, 1]),
         row(Entrant::Mcts, [0, 0, 0, 0]),
+        row(Entrant::Allis, [0, 0, 0, 0]),
     ];
     assert_eq!(table, expected);
     assert!((table[0].points() - 1.5).abs() < f64::EPSILON);
