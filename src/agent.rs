@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use crate::board::{Board, Geometry};
+use crate::mcts::{Budget, Uct};
 use crate::outcome::Outcome;
 use crate::random::{SplitMix, pick};
 use crate::search::{self, Weights};
@@ -79,6 +80,34 @@ impl<G: Geometry> Agent<G> for SafeRandom {
         pick(&mut self.rng, board, |col| board.wins(col))
             .or_else(|| pick(&mut self.rng, board, |col| board.opponent_wins(col)))
             .or_else(|| pick(&mut self.rng, board, |_| true))
+            .unwrap_or(0)
+    }
+}
+
+pub struct Mcts<G: Geometry> {
+    tree: Uct<G>,
+}
+
+impl<G: Geometry> Mcts<G> {
+    #[must_use]
+    pub const fn new(seed: u64) -> Self {
+        Self {
+            tree: Uct::new(seed),
+        }
+    }
+}
+
+impl<G: Geometry> Agent<G> for Mcts<G> {
+    fn choose(&mut self, board: Board<G>, deadline: Instant) -> u32 {
+        debug_assert!(board.playable().next().is_some());
+        self.tree
+            .search(
+                board,
+                Budget {
+                    deadline,
+                    simulations: None,
+                },
+            )
             .unwrap_or(0)
     }
 }

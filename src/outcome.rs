@@ -5,6 +5,9 @@ pub enum Outcome {
     Win,
 }
 
+const HALF_POINTS_PER_WIN: u32 = 2;
+const HALF_POINTS_PER_DRAW: u32 = 1;
+
 impl Outcome {
     #[must_use]
     pub const fn flip(self) -> Self {
@@ -12,6 +15,15 @@ impl Outcome {
             Self::Loss => Self::Win,
             Self::Draw => Self::Draw,
             Self::Win => Self::Loss,
+        }
+    }
+
+    #[must_use]
+    pub const fn half_points(self) -> u32 {
+        match self {
+            Self::Win => HALF_POINTS_PER_WIN,
+            Self::Draw => HALF_POINTS_PER_DRAW,
+            Self::Loss => 0,
         }
     }
 

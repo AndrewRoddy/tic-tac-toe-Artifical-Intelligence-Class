@@ -6,6 +6,7 @@ pub mod bits;
 pub mod board;
 pub mod dataset;
 pub mod learn;
+pub mod mcts;
 pub mod outcome;
 pub mod random;
 pub mod search;

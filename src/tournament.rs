@@ -5,7 +5,7 @@ use std::sync::mpsc::{self, Sender};
 use std::thread;
 use std::time::Duration;
 
-use crate::agent::{Agent, AlphaBeta, Perfect, SafeRandom};
+use crate::agent::{Agent, AlphaBeta, Mcts, Perfect, SafeRandom};
 use crate::arena::play;
 use crate::board::{Board, Geometry};
 use crate::dataset::Sample;
@@ -13,17 +13,16 @@ use crate::learn::{Row, fit};
 use crate::outcome::Outcome;
 use crate::search::Weights;
 
-const HALF_POINTS_PER_WIN: u32 = 2;
-const HALF_POINTS_PER_DRAW: u32 = 1;
 const ELO_SCALE: f64 = 400.0;
 const ANCHOR: Entrant = Entrant::SafeRandom;
 const ELO_PER_LOGIT: f64 = ELO_SCALE / LN_10;
 
-pub const ROSTER: [Entrant; 4] = [
+pub const ROSTER: [Entrant; 5] = [
     Entrant::SafeRandom,
     Entrant::Handcrafted,
     Entrant::Learned,
     Entrant::Perfect,
+    Entrant::Mcts,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -32,6 +31,7 @@ pub enum Entrant {
     Handcrafted,
     Learned,
     Perfect,
+    Mcts,
 }
 
 impl Entrant {
@@ -42,6 +42,7 @@ impl Entrant {
             Self::Handcrafted => "alpha-beta-handcrafted",
             Self::Learned => "alpha-beta-learned",
             Self::Perfect => "perfect",
+            Self::Mcts => "mcts",
         }
     }
 
@@ -51,6 +52,7 @@ impl Entrant {
             Self::Handcrafted => Box::new(AlphaBeta::new(G::COLUMNS * G::ROWS, Weights::DEFAULT)),
             Self::Learned => Box::new(AlphaBeta::new(G::COLUMNS * G::ROWS, Weights::LEARNED)),
             Self::Perfect => Box::new(Perfect::<G>::new(perfect_table_bits)),
+            Self::Mcts => Box::new(Mcts::<G>::new(seed)),
         }
     }
 }
@@ -187,12 +189,12 @@ impl Standing {
     }
 
     const fn half_points(&self) -> u32 {
-        HALF_POINTS_PER_WIN * self.wins + HALF_POINTS_PER_DRAW * self.draws
+        Outcome::Win.half_points() * self.wins + Outcome::Draw.half_points() * self.draws
     }
 
     #[must_use]
     pub fn points(&self) -> f64 {
-        f64::from(self.half_points()) / f64::from(HALF_POINTS_PER_WIN)
+        f64::from(self.half_points()) / f64::from(Outcome::Win.half_points())
     }
 
     #[must_use]

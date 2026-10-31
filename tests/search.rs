@@ -5,6 +5,7 @@ use std::{
 };
 
 use c4::board::{B76, Board, Geometry, Grid};
+use c4::dataset::Labelled;
 use c4::outcome::Outcome;
 use c4::search::{Weights, best_column};
 use c4::solver::{Label, Solver};
@@ -13,11 +14,12 @@ use c4::solver::{Label, Solver};
 pub mod oracle;
 use oracle::column;
 
+#[path = "common/pons.rs"]
+pub mod pons;
+
 type Small64 = Grid<4, 4, u64>;
 type Small128 = Grid<4, 4, u128>;
 
-// Pascal Pons, end-game test set Test_L3_R1: http://blog.gamesolver.org/data/Test_L3_R1
-const PONS: &str = include_str!("data/Test_L3_R1");
 const PONS_DEPTH: u32 = 4;
 const SOLVER_BITS: u32 = 21;
 const SMALL_STONES: u32 = 4;
@@ -78,22 +80,19 @@ fn shallow_fixtures_are_exact() -> Result<(), &'static str> {
     Ok(())
 }
 
-fn pons_outcome(score: &str) -> Result<Outcome, std::num::ParseIntError> {
-    Ok(match score.parse::<i32>()? {
-        ..0 => Outcome::Loss,
-        0 => Outcome::Draw,
-        1.. => Outcome::Win,
-    })
-}
-
-fn hits(cases: &[(Board<B76>, Label)], weights: Weights) -> usize {
+fn hits(cases: &[(Labelled<B76>, Label)], weights: Weights) -> usize {
     cases
         .iter()
-        .filter(|(board, label)| {
+        .filter(|(sample, label)| {
             let Some(best) = label.columns.iter().flatten().max() else {
                 return false;
             };
-            let chosen = best_column(*board, PONS_DEPTH, Instant::now() + UNLIMITED, weights);
+            let chosen = best_column(
+                sample.board,
+                PONS_DEPTH,
+                Instant::now() + UNLIMITED,
+                weights,
+            );
             let picked = chosen
                 .and_then(|col| usize::try_from(col).ok())
                 .and_then(|index| label.columns.get(index))
@@ -107,14 +106,7 @@ fn hits(cases: &[(Board<B76>, Label)], weights: Weights) -> usize {
 #[test]
 fn pons_threat_eval_beats_zero() -> Result<(), Box<dyn Error>> {
     let mut solver = Solver::<B76>::new(SOLVER_BITS);
-    let mut cases = Vec::new();
-    for line in PONS.lines() {
-        let (moves, score) = line.split_once(' ').ok_or(line)?;
-        let board = Board::<B76>::from_moves(moves).ok_or(line)?;
-        let label = solver.label(board, None).ok_or(line)?;
-        assert_eq!(label.result, pons_outcome(score)?, "{line}");
-        cases.push((board, label));
-    }
+    let cases = pons::labelled(&mut solver, |_| true)?;
     let weighted = hits(&cases, Weights::DEFAULT);
     let zero = hits(&cases, Weights::NONE);
     assert!(
