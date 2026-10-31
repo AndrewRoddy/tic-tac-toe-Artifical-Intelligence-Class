@@ -4,14 +4,21 @@ use crate::agent::Agent;
 use crate::board::{Board, Geometry};
 use crate::outcome::Outcome;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Game {
+    pub outcome: Outcome,
+    pub moves: Vec<u32>,
+}
+
 pub fn play<'a, G: Geometry>(
     start: Board<G>,
     first: &'a mut dyn Agent<G>,
     second: &'a mut dyn Agent<G>,
     per_move: Duration,
-) -> Outcome {
+) -> Game {
     let mut board = start;
     let mut ply = 0_u32;
+    let mut moves = Vec::new();
     while board.playable().next().is_some() {
         let agent = if ply.is_multiple_of(2) {
             &mut *first
@@ -19,13 +26,20 @@ pub fn play<'a, G: Geometry>(
             &mut *second
         };
         let col = agent.choose(board, Instant::now() + per_move);
+        moves.push(col);
         if let Some(outcome) = verdict(board, col) {
-            return for_first(ply, outcome);
+            return Game {
+                outcome: for_first(ply, outcome),
+                moves,
+            };
         }
         board.play(col);
         ply += 1;
     }
-    Outcome::Draw
+    Game {
+        outcome: Outcome::Draw,
+        moves,
+    }
 }
 
 fn verdict<G: Geometry>(board: Board<G>, col: u32) -> Option<Outcome> {

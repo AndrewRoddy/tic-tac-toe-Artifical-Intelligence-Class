@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use c4::agent::{Agent, Perfect};
-use c4::arena::play;
+use c4::arena::{Game, play};
 use c4::board::{Board, Geometry, Grid};
 use c4::outcome::Outcome;
 use c4::solver::Solver;
@@ -30,6 +30,28 @@ fn starts<G: Geometry>(board: Board<G>, depth: u32, found: &mut Vec<Board<G>>) {
     }
 }
 
+fn replays<G: Geometry>(start: Board<G>, game: &Game) {
+    assert!(!game.moves.is_empty());
+    let mut board = start;
+    let mut mover_view = game.outcome;
+    for (ply, &col) in game.moves.iter().enumerate() {
+        let ending = if col >= G::COLUMNS || !board.can_play(col) {
+            Some(Outcome::Loss)
+        } else if board.wins(col) {
+            Some(Outcome::Win)
+        } else {
+            board.play(col);
+            board.playable().next().is_none().then_some(Outcome::Draw)
+        };
+        assert_eq!(ending.is_some(), ply + 1 == game.moves.len());
+        if let Some(outcome) = ending {
+            assert_eq!(mover_view, outcome);
+            return;
+        }
+        mover_view = mover_view.flip();
+    }
+}
+
 fn self_play<G: Geometry>(depth: u32) {
     let mut solver = Solver::<G>::new(TABLE_BITS);
     let mut first = Perfect::<G>::new(TABLE_BITS);
@@ -37,8 +59,9 @@ fn self_play<G: Geometry>(depth: u32) {
     let mut found = Vec::new();
     starts(Board::<G>::default(), depth, &mut found);
     for start in found {
-        let result = play(start, &mut first, &mut second, PER_MOVE);
-        assert_eq!(Some(result), solver.solve(start, None));
+        let game = play(start, &mut first, &mut second, PER_MOVE);
+        assert_eq!(Some(game.outcome), solver.solve(start, None));
+        replays(start, &game);
     }
 }
 
@@ -53,15 +76,15 @@ fn forfeits<G: Geometry>() {
     let mut perfect = Perfect::<G>::new(TABLE_BITS);
     let off_board = G::COLUMNS;
     assert_eq!(
-        play(start, &mut Column(off_board), &mut perfect, PER_MOVE),
+        play(start, &mut Column(off_board), &mut perfect, PER_MOVE).outcome,
         Outcome::Loss
     );
     assert_eq!(
-        play(start, &mut perfect, &mut Column(off_board), PER_MOVE),
+        play(start, &mut perfect, &mut Column(off_board), PER_MOVE).outcome,
         Outcome::Win
     );
     assert_eq!(
-        play(start, &mut Column(0), &mut Column(0), PER_MOVE),
+        play(start, &mut Column(0), &mut Column(0), PER_MOVE).outcome,
         Outcome::Loss
     );
 }
