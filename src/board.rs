@@ -9,8 +9,6 @@ pub trait Geometry: Copy {
 }
 
 pub const COLUMN_LIMIT: usize = 9;
-const FIRST_ODD_ROW_INDEX: u32 = 0;
-const FIRST_EVEN_ROW_INDEX: u32 = 1;
 
 const fn columns_within(columns: u32) -> bool {
     let mut count = 0;
@@ -37,10 +35,10 @@ pub type B98 = Grid<9, 8, u128>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Threats {
-    pub first_odd: u32,
-    pub first_even: u32,
-    pub second_odd: u32,
-    pub second_even: u32,
+    pub first_good: u32,
+    pub first_other: u32,
+    pub second_good: u32,
+    pub second_other: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -113,11 +111,12 @@ impl<G: Geometry> Board<G> {
         } else {
             (waiting, mover)
         };
+        let first_rows = Self::first_rows();
         Threats {
-            first_odd: (first & Self::rows_from(FIRST_ODD_ROW_INDEX)).count_ones(),
-            first_even: (first & Self::rows_from(FIRST_EVEN_ROW_INDEX)).count_ones(),
-            second_odd: (second & Self::rows_from(FIRST_ODD_ROW_INDEX)).count_ones(),
-            second_even: (second & Self::rows_from(FIRST_EVEN_ROW_INDEX)).count_ones(),
+            first_good: (first & first_rows).count_ones(),
+            first_other: (first & !first_rows).count_ones(),
+            second_good: (second & !first_rows).count_ones(),
+            second_other: (second & first_rows).count_ones(),
         }
     }
 
@@ -163,13 +162,17 @@ impl<G: Geometry> Board<G> {
         (0..G::COLUMNS).fold(G::Bits::ZERO, |all, col| all | Self::column(col))
     }
 
-    fn rows_from(first: u32) -> G::Bits {
-        let stripe = (first..G::ROWS)
-            .step_by(2)
+    fn first_rows() -> G::Bits {
+        let stripe = (0..G::ROWS)
+            .filter(|&row| Self::first_takes_row(row))
             .fold(G::Bits::ZERO, |cells, row| cells | (G::Bits::ONE << row));
         (0..G::COLUMNS).fold(G::Bits::ZERO, |all, col| {
             all | (stripe << (col * Self::STRIDE))
         })
+    }
+
+    const fn first_takes_row(row: u32) -> bool {
+        ((G::COLUMNS - 1) * G::ROWS + row).is_multiple_of(2)
     }
 
     fn bottom(col: u32) -> G::Bits {

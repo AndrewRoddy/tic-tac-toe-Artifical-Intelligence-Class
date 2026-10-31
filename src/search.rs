@@ -9,7 +9,6 @@ const GOOD_ROW_THREAT: i32 = 4;
 const OTHER_ROW_THREAT: i32 = 1;
 const CLOCK_INTERVAL: u64 = 1024;
 
-// Entries follow one order: mover good, mover other, opponent good, opponent other.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Features(pub [u32; 4]);
 
@@ -19,17 +18,17 @@ impl Features {
         let threats = board.threat_rows();
         if board.first_to_move() {
             Self([
-                threats.first_odd,
-                threats.first_even,
-                threats.second_even,
-                threats.second_odd,
+                threats.first_good,
+                threats.first_other,
+                threats.second_good,
+                threats.second_other,
             ])
         } else {
             Self([
-                threats.second_even,
-                threats.second_odd,
-                threats.first_odd,
-                threats.first_even,
+                threats.second_good,
+                threats.second_other,
+                threats.first_good,
+                threats.first_other,
             ])
         }
     }
@@ -46,7 +45,7 @@ impl Weights {
         -OTHER_ROW_THREAT,
     ]);
     pub const NONE: Self = Self([0; 4]);
-    pub const LEARNED: Self = Self([649, 993, -881, -1144]);
+    pub const LEARNED: Self = Self([993, 649, -1144, -881]);
 
     fn score(self, features: Features) -> i64 {
         self.0
