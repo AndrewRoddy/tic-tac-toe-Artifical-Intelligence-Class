@@ -4,6 +4,8 @@ use std::ops::{Add, BitAnd, BitOr, BitXor, Not, Shl, Shr, Sub};
 
 pub trait Bits:
     Copy
+    + Send
+    + Sync
     + Eq
     + Ord
     + Hash

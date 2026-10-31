@@ -1,11 +1,9 @@
-use std::collections::HashSet;
 use std::env;
 use std::io::{self, Write};
 use std::process::ExitCode;
 
 use c4::board::{B87, Geometry, format_moves};
-use c4::dataset::sample;
-use c4::random::SplitMix;
+use c4::dataset::unique_samples;
 
 const USAGE: &str = "usage: gen <count> <min_stones> <max_stones> <seed>";
 
@@ -40,19 +38,9 @@ fn main() -> io::Result<ExitCode> {
         eprintln!("{USAGE}");
         return Ok(ExitCode::FAILURE);
     };
-    let mut rng = SplitMix::new(request.seed);
-    let mut seen = HashSet::new();
     let mut out = io::stdout().lock();
-    let mut targets = (request.low..=request.high).cycle().skip(1);
-    let mut stones = request.low;
-    while seen.len() < request.count {
-        let Some(position) = sample::<B87>(&mut rng, stones) else {
-            continue;
-        };
-        stones = targets.next().unwrap_or(request.low);
-        if seen.insert(position.board.canonical()) {
-            writeln!(out, "{}", format_moves(&position.columns))?;
-        }
+    for sample in unique_samples::<B87>(request.seed, request.count, request.low, request.high) {
+        writeln!(out, "{}", format_moves(&sample.columns))?;
     }
     Ok(ExitCode::SUCCESS)
 }

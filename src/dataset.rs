@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::board::{Board, Geometry};
 use crate::outcome::Outcome;
 use crate::random::{SplitMix, pick};
@@ -23,6 +25,31 @@ pub fn sample<G: Geometry>(rng: &mut SplitMix, stones: usize) -> Option<Sample<G
         columns.push(col);
     }
     Some(Sample { columns, board })
+}
+
+#[must_use]
+pub fn unique_samples<G: Geometry>(
+    seed: u64,
+    count: usize,
+    low: usize,
+    high: usize,
+) -> Vec<Sample<G>> {
+    debug_assert!((1..=high).contains(&low));
+    let mut rng = SplitMix::new(seed);
+    let mut distinct = HashSet::new();
+    let mut found = Vec::with_capacity(count);
+    let mut targets = (low..=high).cycle().skip(1);
+    let mut stones = low;
+    while found.len() < count {
+        let Some(drawn) = sample::<G>(&mut rng, stones) else {
+            continue;
+        };
+        stones = targets.next().unwrap_or(low);
+        if distinct.insert(drawn.board.canonical()) {
+            found.push(drawn);
+        }
+    }
+    found
 }
 
 pub struct Labelled<G: Geometry> {
