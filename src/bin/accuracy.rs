@@ -8,17 +8,16 @@ use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use c4::accuracy::Tally;
-use c4::board::{B87, Geometry};
+use c4::board::{B87, B98, Geometry};
 use c4::dataset::{ColumnLabelled, parse_column_labelled, split};
 use c4::outcome::Outcome;
 use c4::parallel::map_each;
 use c4::tournament::{Entrant, PERFECT_TABLE_BITS, ROSTER};
 
 const USAGE: &str =
-    "usage: accuracy <labelled.txt> <held-out|all> <entrant> <ms_per_move> <workers> [limit]
+    "usage: accuracy <8x7|9x8> <labelled.txt> <held-out|all> <entrant> <ms_per_move> <workers> [limit]
 entrants: safe-random, alpha-beta-handcrafted, alpha-beta-learned, perfect, mcts, allis";
-const CELLS: u32 = B87::COLUMNS * B87::ROWS;
-const PHASES: [RangeInclusive<u32>; 7] = [
+const PHASES: [RangeInclusive<u32>; 10] = [
     10..=12,
     14..=15,
     16..=20,
@@ -26,6 +25,9 @@ const PHASES: [RangeInclusive<u32>; 7] = [
     27..=32,
     33..=38,
     39..=44,
+    45..=50,
+    51..=56,
+    57..=60,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,9 +60,9 @@ struct Request {
     limit: Option<usize>,
 }
 
-struct Position {
+struct Position<G: Geometry> {
     seed: u64,
-    labelled: ColumnLabelled<B87>,
+    labelled: ColumnLabelled<G>,
 }
 
 struct Answer {
@@ -121,11 +123,26 @@ fn parse(args: &[String]) -> Option<Request> {
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
-    let Some(request) = parse(&args) else {
+    let [size, rest @ ..] = args.as_slice() else {
         eprintln!("{USAGE}");
         return ExitCode::FAILURE;
     };
-    match execute(&request) {
+    match size.as_str() {
+        "8x7" => run::<B87>(rest),
+        "9x8" => run::<B98>(rest),
+        _ => {
+            eprintln!("{USAGE}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run<G: Geometry + 'static>(args: &[String]) -> ExitCode {
+    let Some(request) = parse(args) else {
+        eprintln!("{USAGE}");
+        return ExitCode::FAILURE;
+    };
+    match execute::<G>(&request) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("accuracy: {error}");
@@ -134,8 +151,8 @@ fn main() -> ExitCode {
     }
 }
 
-fn execute(request: &Request) -> Result<(), Box<dyn Error>> {
-    let mut positions = load(&request.path, request.set)?;
+fn execute<G: Geometry + 'static>(request: &Request) -> Result<(), Box<dyn Error>> {
+    let mut positions = load::<G>(&request.path, request.set)?;
     if let Some(max) = request.limit {
         positions.truncate(max);
     }
@@ -147,7 +164,7 @@ fn execute(request: &Request) -> Result<(), Box<dyn Error>> {
     map_each(
         &positions,
         request.workers.get(),
-        |position| answer(position, request.entrant, request.per_move),
+        |position| answer::<G>(position, request.entrant, request.per_move),
         |answer| {
             if report.record(&answer).is_some() {
                 ControlFlow::Continue(())
@@ -164,12 +181,12 @@ fn execute(request: &Request) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn load(path: &str, set: Set) -> Result<Vec<Position>, Box<dyn Error>> {
+fn load<G: Geometry>(path: &str, set: Set) -> Result<Vec<Position<G>>, Box<dyn Error>> {
     let reader = BufReader::new(File::open(path)?);
     let mut lines = Vec::new();
     for (line, seed) in reader.lines().zip(0_u64..) {
         let line = line?;
-        let labelled = parse_column_labelled::<B87>(&line)
+        let labelled = parse_column_labelled::<G>(&line)
             .ok_or_else(|| format!("line {}: malformed labelled position", seed + 1))?;
         lines.push(Position { seed, labelled });
     }
@@ -179,13 +196,17 @@ fn load(path: &str, set: Set) -> Result<Vec<Position>, Box<dyn Error>> {
     })
 }
 
-fn answer(position: &Position, entrant: Entrant, per_move: Duration) -> Answer {
+fn answer<G: Geometry + 'static>(
+    position: &Position<G>,
+    entrant: Entrant,
+    per_move: Duration,
+) -> Answer {
     let board = position.labelled.position.board;
-    let mut agent = entrant.build::<B87>(position.seed, PERFECT_TABLE_BITS);
+    let mut agent = entrant.build::<G>(position.seed, PERFECT_TABLE_BITS);
     let column = agent.choose(board, Instant::now() + per_move);
     Answer {
         columns: position.labelled.columns.clone(),
-        stones: CELLS - board.empty_cells(),
+        stones: G::COLUMNS * G::ROWS - board.empty_cells(),
         column,
     }
 }
