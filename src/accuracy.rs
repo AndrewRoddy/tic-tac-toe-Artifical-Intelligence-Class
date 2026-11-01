@@ -1,3 +1,5 @@
+use std::fmt::{self, Display, Formatter};
+
 use crate::outcome::Outcome;
 
 const Z_95: f64 = 1.959_963_984_540_054;
@@ -6,6 +8,12 @@ const Z_95: f64 = 1.959_963_984_540_054;
 pub struct Interval {
     pub low: f64,
     pub high: f64,
+}
+
+impl Display for Interval {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(formatter, "[{:.3}, {:.3}]", self.low, self.high)
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
@@ -52,7 +60,7 @@ impl Tally {
 }
 
 #[must_use]
-fn wilson(correct: u32, total: u32) -> Option<Interval> {
+pub fn wilson(correct: u32, total: u32) -> Option<Interval> {
     if total == 0 {
         return None;
     }

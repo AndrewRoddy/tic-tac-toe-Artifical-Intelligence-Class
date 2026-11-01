@@ -12,7 +12,7 @@ use c4::board::{B87, B98, Geometry};
 use c4::dataset::{ColumnLabelled, parse_column_labelled, split};
 use c4::outcome::Outcome;
 use c4::parallel::map_each;
-use c4::tournament::{Entrant, PERFECT_TABLE_BITS, ROSTER};
+use c4::tournament::{Entrant, PERFECT_TABLE_BITS};
 
 const USAGE: &str =
     "usage: accuracy <8x7|9x8> <labelled.txt> <held-out|all> <entrant> <ms_per_move> <workers> [limit]
@@ -101,10 +101,7 @@ fn parse(args: &[String]) -> Option<Request> {
         return None;
     };
     let set = Set::parse(set)?;
-    let entrant = ROSTER
-        .iter()
-        .copied()
-        .find(|entrant| entrant.name() == name.as_str())?;
+    let entrant = Entrant::parse(name)?;
     let millis: u64 = millis.parse().ok().filter(|ms| *ms >= 1)?;
     let limit = match rest {
         [] => None,
@@ -231,10 +228,9 @@ fn print_report(request: &Request, report: &Report) {
 }
 
 fn print_row(label: &str, tally: &Tally) {
-    let interval = tally.interval().map_or_else(
-        || "-".to_owned(),
-        |interval| format!("[{:.3}, {:.3}]", interval.low, interval.high),
-    );
+    let interval = tally
+        .interval()
+        .map_or_else(|| "-".to_owned(), |interval| interval.to_string());
     println!(
         "{:<8}{:>8}{:>10}{:>22}{:>10}",
         label,

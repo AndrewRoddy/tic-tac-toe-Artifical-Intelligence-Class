@@ -10,20 +10,26 @@ pub struct Game {
     pub moves: Vec<u32>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Pace {
+    pub first: Duration,
+    pub second: Duration,
+}
+
 pub fn play<'a, G: Geometry>(
     start: Board<G>,
     first: &'a mut dyn Agent<G>,
     second: &'a mut dyn Agent<G>,
-    per_move: Duration,
+    pace: Pace,
 ) -> Game {
     let mut board = start;
     let mut ply = 0_u32;
     let mut moves = Vec::new();
     while board.playable().next().is_some() {
-        let agent = if ply.is_multiple_of(2) {
-            &mut *first
+        let (agent, per_move) = if ply.is_multiple_of(2) {
+            (&mut *first, pace.first)
         } else {
-            &mut *second
+            (&mut *second, pace.second)
         };
         let col = agent.choose(board, Instant::now() + per_move);
         moves.push(col);

@@ -1,13 +1,17 @@
 use std::time::{Duration, Instant};
 
 use c4::agent::{Agent, Perfect};
-use c4::arena::{Game, play};
+use c4::arena::{Game, Pace, play};
 use c4::board::{Board, Geometry, Grid};
 use c4::outcome::Outcome;
 use c4::solver::Solver;
 
 const TABLE_BITS: u32 = 16;
 const PER_MOVE: Duration = Duration::from_secs(1);
+const PACE: Pace = Pace {
+    first: PER_MOVE,
+    second: PER_MOVE,
+};
 const START_DEPTH: u32 = 4;
 
 struct Column(u32);
@@ -59,7 +63,7 @@ fn self_play<G: Geometry>(depth: u32) {
     let mut found = Vec::new();
     starts(Board::<G>::default(), depth, &mut found);
     for start in found {
-        let game = play(start, &mut first, &mut second, PER_MOVE);
+        let game = play(start, &mut first, &mut second, PACE);
         assert_eq!(Some(game.outcome), solver.solve(start, None));
         replays(start, &game);
     }
@@ -76,15 +80,15 @@ fn forfeits<G: Geometry>() {
     let mut perfect = Perfect::<G>::new(TABLE_BITS);
     let off_board = G::COLUMNS;
     assert_eq!(
-        play(start, &mut Column(off_board), &mut perfect, PER_MOVE).outcome,
+        play(start, &mut Column(off_board), &mut perfect, PACE).outcome,
         Outcome::Loss
     );
     assert_eq!(
-        play(start, &mut perfect, &mut Column(off_board), PER_MOVE).outcome,
+        play(start, &mut perfect, &mut Column(off_board), PACE).outcome,
         Outcome::Win
     );
     assert_eq!(
-        play(start, &mut Column(0), &mut Column(0), PER_MOVE).outcome,
+        play(start, &mut Column(0), &mut Column(0), PACE).outcome,
         Outcome::Loss
     );
 }
@@ -93,4 +97,43 @@ fn forfeits<G: Geometry>() {
 fn illegal_column_forfeits() {
     forfeits::<Grid<4, 4, u64>>();
     forfeits::<Grid<4, 4, u128>>();
+}
+
+const UNEQUAL: Pace = Pace {
+    first: Duration::from_secs(1),
+    second: Duration::from_secs(3),
+};
+
+#[derive(Default)]
+struct Recorder {
+    deadlines: Vec<Instant>,
+}
+
+impl<G: Geometry> Agent<G> for Recorder {
+    fn choose(&mut self, board: Board<G>, deadline: Instant) -> u32 {
+        self.deadlines.push(deadline);
+        board.playable().next().unwrap_or(0)
+    }
+}
+
+#[test]
+fn each_seat_gets_its_own_pace() {
+    let mut first = Recorder::default();
+    let mut second = Recorder::default();
+    let before = Instant::now();
+    play(
+        Board::<Grid<4, 4, u64>>::default(),
+        &mut first,
+        &mut second,
+        UNEQUAL,
+    );
+    let after = Instant::now();
+    assert!(!first.deadlines.is_empty());
+    assert!(!second.deadlines.is_empty());
+    for deadline in &first.deadlines {
+        assert!(before + UNEQUAL.first <= *deadline && *deadline <= after + UNEQUAL.first);
+    }
+    for deadline in &second.deadlines {
+        assert!(before + UNEQUAL.second <= *deadline && *deadline <= after + UNEQUAL.second);
+    }
 }

@@ -1,9 +1,9 @@
 use std::f64::consts::LN_10;
 use std::ops::ControlFlow;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::agent::{Agent, Allis, AlphaBeta, Mcts, Network, Perfect, SafeRandom};
-use crate::arena::play;
+use crate::arena::{Pace, play};
 use crate::board::{Board, Geometry};
 use crate::dataset::Sample;
 use crate::learn::{Row, fit};
@@ -52,6 +52,14 @@ impl Entrant {
     }
 
     #[must_use]
+    pub fn parse(name: &str) -> Option<Self> {
+        ROSTER
+            .iter()
+            .copied()
+            .find(|entrant| entrant.name() == name)
+    }
+
+    #[must_use]
     pub fn build<G: Geometry + 'static>(
         self,
         seed: u64,
@@ -72,8 +80,13 @@ impl Entrant {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Settings {
-    pub per_move: Duration,
     pub perfect_table_bits: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Seat {
+    pub entrant: Entrant,
+    pub per_move: Duration,
 }
 
 #[derive(Clone, Copy)]
@@ -81,8 +94,8 @@ pub struct Fixture<G: Geometry> {
     pub index: u64,
     pub opening: usize,
     pub start: Board<G>,
-    pub first: Entrant,
-    pub second: Entrant,
+    pub first: Seat,
+    pub second: Seat,
 }
 
 fn ordered_pairs(roster: &[Entrant]) -> impl Iterator<Item = (Entrant, Entrant)> + '_ {
@@ -95,7 +108,11 @@ fn ordered_pairs(roster: &[Entrant]) -> impl Iterator<Item = (Entrant, Entrant)>
 }
 
 #[must_use]
-pub fn schedule<G: Geometry>(roster: &[Entrant], openings: &[Sample<G>]) -> Vec<Fixture<G>> {
+pub fn schedule<G: Geometry>(
+    roster: &[Entrant],
+    openings: &[Sample<G>],
+    per_move: Duration,
+) -> Vec<Fixture<G>> {
     let games = openings
         .iter()
         .enumerate()
@@ -108,10 +125,22 @@ pub fn schedule<G: Geometry>(roster: &[Entrant], openings: &[Sample<G>]) -> Vec<
             index,
             opening,
             start,
-            first,
-            second,
+            first: Seat {
+                entrant: first,
+                per_move,
+            },
+            second: Seat {
+                entrant: second,
+                per_move,
+            },
         })
         .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Deadline {
+    Met,
+    Missed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,23 +151,51 @@ pub struct Record {
     pub second: Entrant,
     pub outcome: Outcome,
     pub moves: Vec<u32>,
+    pub first_deadline: Deadline,
+    pub second_deadline: Deadline,
+}
+
+struct Watched<G: Geometry> {
+    agent: Box<dyn Agent<G>>,
+    status: Deadline,
+}
+
+fn watch<G: Geometry>(agent: Box<dyn Agent<G>>) -> Watched<G> {
+    Watched {
+        agent,
+        status: Deadline::Met,
+    }
+}
+
+impl<G: Geometry> Agent<G> for Watched<G> {
+    fn choose(&mut self, board: Board<G>, deadline: Instant) -> u32 {
+        let column = self.agent.choose(board, deadline);
+        if Instant::now() >= deadline {
+            self.status = Deadline::Missed;
+        }
+        column
+    }
 }
 
 fn play_fixture<G: Geometry + 'static>(fixture: &Fixture<G>, settings: Settings) -> Option<Record> {
-    let mut first = fixture
-        .first
-        .build::<G>(fixture.index, settings.perfect_table_bits)?;
-    let mut second = fixture
-        .second
-        .build::<G>(fixture.index, settings.perfect_table_bits)?;
-    let game = play(fixture.start, &mut *first, &mut *second, settings.per_move);
+    let table_bits = settings.perfect_table_bits;
+    let index = fixture.index;
+    let mut first = watch(fixture.first.entrant.build::<G>(index, table_bits)?);
+    let mut second = watch(fixture.second.entrant.build::<G>(index, table_bits)?);
+    let pace = Pace {
+        first: fixture.first.per_move,
+        second: fixture.second.per_move,
+    };
+    let game = play(fixture.start, &mut first, &mut second, pace);
     Some(Record {
         game: fixture.index,
         opening: fixture.opening,
-        first: fixture.first,
-        second: fixture.second,
+        first: fixture.first.entrant,
+        second: fixture.second.entrant,
         outcome: game.outcome,
         moves: game.moves,
+        first_deadline: first.status,
+        second_deadline: second.status,
     })
 }
 

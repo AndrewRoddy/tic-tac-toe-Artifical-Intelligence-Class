@@ -17,3 +17,4 @@ pub mod rules;
 pub mod search;
 pub mod solver;
 pub mod tournament;
+pub mod versus;

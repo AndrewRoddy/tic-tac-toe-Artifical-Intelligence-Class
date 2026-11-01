@@ -74,9 +74,8 @@ fn main() -> ExitCode {
 
 fn execute(request: &Request) -> Result<(), Box<dyn Error>> {
     let openings = unique_samples::<B98>(request.seed, request.openings, request.low, request.high);
-    let fixtures = schedule(&ROSTER, &openings);
+    let fixtures = schedule(&ROSTER, &openings, request.per_move);
     let settings = Settings {
-        per_move: request.per_move,
         perfect_table_bits: PERFECT_TABLE_BITS,
     };
     let mut writer: Box<dyn Write> = match &request.path {

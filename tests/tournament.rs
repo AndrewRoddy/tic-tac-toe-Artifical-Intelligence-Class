@@ -6,7 +6,8 @@ use c4::board::{B76, B98, Board, Geometry};
 use c4::dataset::unique_samples;
 use c4::outcome::Outcome;
 use c4::tournament::{
-    Entrant, ROSTER, Rating, Record, Settings, Standing, elo_ratings, run, schedule, standings,
+    Deadline, Entrant, ROSTER, Rating, Record, Seat, Settings, Standing, elo_ratings, run,
+    schedule, standings,
 };
 
 const SEED: u64 = 7;
@@ -19,7 +20,6 @@ const PERFECT_TABLE_BITS: u32 = 16;
 const PAIR_ROSTER: [Entrant; 2] = [Entrant::SafeRandom, Entrant::Perfect];
 const fn settings() -> Settings {
     Settings {
-        per_move: PER_MOVE,
         perfect_table_bits: PERFECT_TABLE_BITS,
     }
 }
@@ -56,7 +56,7 @@ fn replay<G: Geometry>(start: Board<G>, columns: &[u32]) -> Board<G> {
 
 fn check_schedule<G: Geometry + 'static>() {
     let openings = unique_samples::<G>(SEED, OPENING_COUNT, LOW, HIGH);
-    let fixtures = schedule(&ROSTER, &openings);
+    let fixtures = schedule(&ROSTER, &openings, PER_MOVE);
     let per_opening = ROSTER.len() * (ROSTER.len() - 1);
     assert_eq!(fixtures.len(), OPENING_COUNT * per_opening);
     for (position, (fixture, expected_index)) in fixtures.iter().zip(0_u64..).enumerate() {
@@ -67,7 +67,7 @@ fn check_schedule<G: Geometry + 'static>() {
         let pairs: HashSet<(Entrant, Entrant)> = fixtures
             .iter()
             .filter(|fixture| fixture.opening == opening)
-            .map(|fixture| (fixture.first, fixture.second))
+            .map(|fixture| (fixture.first.entrant, fixture.second.entrant))
             .collect();
         assert_eq!(pairs.len(), per_opening);
         assert!(pairs.iter().all(|(first, second)| first != second));
@@ -96,7 +96,7 @@ on_both_widths!(openings_unique_and_in_range, check_openings);
 
 fn check_run<G: Geometry + 'static>() {
     let openings = unique_samples::<G>(SEED, OPENING_COUNT, LOW, HIGH);
-    let fixtures = schedule(&PAIR_ROSTER, &openings);
+    let fixtures = schedule(&PAIR_ROSTER, &openings, PER_MOVE);
     let mut records: Vec<Record> = Vec::new();
     let finished = run(&fixtures, settings(), WORKERS, |record| {
         records.push(record);
@@ -108,8 +108,8 @@ fn check_run<G: Geometry + 'static>() {
     for (fixture, record) in fixtures.iter().zip(&records) {
         assert_eq!(record.game, fixture.index);
         assert_eq!(record.opening, fixture.opening);
-        assert_eq!(record.first, fixture.first);
-        assert_eq!(record.second, fixture.second);
+        assert_eq!(record.first, fixture.first.entrant);
+        assert_eq!(record.second, fixture.second.entrant);
         replay(fixture.start, &record.moves);
     }
 }
@@ -118,7 +118,7 @@ on_both_widths!(run_plays_every_fixture_legally, check_run);
 
 fn check_early_stop<G: Geometry + 'static>() {
     let openings = unique_samples::<G>(SEED, OPENING_COUNT, LOW, HIGH);
-    let fixtures = schedule(&PAIR_ROSTER, &openings);
+    let fixtures = schedule(&PAIR_ROSTER, &openings, PER_MOVE);
     let mut seen = 0_usize;
     let finished = run(&fixtures, settings(), WORKERS, |_| {
         seen += 1;
@@ -148,6 +148,8 @@ const fn record(first: Entrant, second: Entrant, outcome: Outcome) -> Record {
         second,
         outcome,
         moves: Vec::new(),
+        first_deadline: Deadline::Met,
+        second_deadline: Deadline::Met,
     }
 }
 
@@ -262,3 +264,31 @@ fn wins_losses_closed_form() {
     assert!((elo_of(&ratings, Entrant::Learned) - expected).abs() < ELO_TOLERANCE);
     assert!((elo_of(&ratings, Entrant::Perfect) + expected).abs() < ELO_TOLERANCE);
 }
+
+fn check_deadlines<G: Geometry + 'static>() {
+    let openings = unique_samples::<G>(SEED, OPENING_COUNT, LOW, HIGH);
+    let mut fixtures = schedule(&PAIR_ROSTER, &openings, PER_MOVE);
+    for fixture in &mut fixtures {
+        fixture.first = Seat {
+            entrant: Entrant::SafeRandom,
+            per_move: Duration::ZERO,
+        };
+        fixture.second = Seat {
+            entrant: Entrant::SafeRandom,
+            per_move: Duration::from_secs(3600),
+        };
+    }
+    let mut records: Vec<Record> = Vec::new();
+    let finished = run(&fixtures, settings(), WORKERS, |record| {
+        records.push(record);
+        ControlFlow::Continue(())
+    });
+    assert!(finished.is_some());
+    assert_eq!(records.len(), fixtures.len());
+    for record in &records {
+        assert_eq!(record.first_deadline, Deadline::Missed);
+        assert_eq!(record.second_deadline, Deadline::Met);
+    }
+}
+
+on_both_widths!(deadlines_follow_seat_pace, check_deadlines);
