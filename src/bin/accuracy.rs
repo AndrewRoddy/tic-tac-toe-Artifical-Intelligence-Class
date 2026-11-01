@@ -18,7 +18,15 @@ const USAGE: &str =
     "usage: accuracy <labelled.txt> <held-out|all> <entrant> <ms_per_move> <workers> [limit]
 entrants: safe-random, alpha-beta-handcrafted, alpha-beta-learned, perfect, mcts, allis";
 const CELLS: u32 = B87::COLUMNS * B87::ROWS;
-const PHASES: [RangeInclusive<u32>; 6] = [10..=12, 16..=20, 21..=26, 27..=32, 33..=38, 39..=44];
+const PHASES: [RangeInclusive<u32>; 7] = [
+    10..=12,
+    14..=15,
+    16..=20,
+    21..=26,
+    27..=32,
+    33..=38,
+    39..=44,
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Set {

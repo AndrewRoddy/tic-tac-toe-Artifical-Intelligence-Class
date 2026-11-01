@@ -77,10 +77,10 @@ pub fn split<T>(lines: Vec<T>) -> Split<T> {
     parts
 }
 
-const TRAIN_LINES: usize = 90_000;
+const HELD_OUT_EVERY: usize = 10;
 
 const fn held_out(index: usize) -> bool {
-    index >= TRAIN_LINES
+    index % HELD_OUT_EVERY == HELD_OUT_EVERY - 1
 }
 
 #[must_use]

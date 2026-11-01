@@ -9,10 +9,10 @@ use c4::outcome::Outcome;
 use c4::search::Weights;
 
 const DATA: &str = "data/train_8x7.txt";
-const DATA_LINES: usize = 100_000;
+const DATA_LINES: usize = 106_898;
 const FIT_LINES: usize = 2_000;
 const SCALE: f64 = 1_000.0;
-const INTERCEPT: f64 = 0.982;
+const INTERCEPT: f64 = 0.972;
 
 fn slice(start: usize, count: usize) -> Result<Vec<Labelled<B87>>, Box<dyn Error>> {
     let mut samples = Vec::with_capacity(count);

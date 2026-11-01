@@ -36,7 +36,7 @@ impl Weights {
         -OTHER_ROW_THREAT,
     ]);
     pub const NONE: Self = Self([0; 4]);
-    pub const LEARNED: Self = Self([993, 649, -1144, -881]);
+    pub const LEARNED: Self = Self([1010, 662, -1152, -895]);
 
     fn score(self, features: Features) -> i64 {
         self.0
