@@ -4,7 +4,7 @@ use burn::backend::Flex;
 use burn::backend::flex::FlexDevice;
 
 use crate::board::{Board, Geometry};
-use crate::mcts::{Budget, Uct};
+use crate::mcts::{Budget, Guide, Playouts, Uct};
 use crate::net::{self, Net};
 use crate::outcome::Outcome;
 use crate::random::{SplitMix, pick};
@@ -89,11 +89,11 @@ impl<G: Geometry> Agent<G> for SafeRandom {
     }
 }
 
-pub struct Mcts<G: Geometry> {
-    tree: Uct<G>,
+pub struct Mcts<G: Geometry, P: Guide<G> = Playouts> {
+    tree: Uct<G, P>,
 }
 
-impl<G: Geometry> Mcts<G> {
+impl<G: Geometry> Mcts<G, Playouts> {
     #[must_use]
     pub const fn new(seed: u64) -> Self {
         Self {
@@ -102,7 +102,16 @@ impl<G: Geometry> Mcts<G> {
     }
 }
 
-impl<G: Geometry> Agent<G> for Mcts<G> {
+impl<G: Geometry> Mcts<G, Network> {
+    #[must_use]
+    pub fn shipped() -> Option<Self> {
+        Network::shipped().map(|network| Self {
+            tree: Uct::with_guide(network),
+        })
+    }
+}
+
+impl<G: Geometry, P: Guide<G>> Agent<G> for Mcts<G, P> {
     fn choose(&mut self, board: Board<G>, deadline: Instant) -> u32 {
         debug_assert!(board.playable().next().is_some());
         self.tree
@@ -137,6 +146,41 @@ impl<G: Geometry> Agent<G> for Network {
             .forecast(board, &self.device)
             .and_then(|forecast| net::choose(board, &forecast))
             .unwrap_or(0)
+    }
+}
+
+// Schrittwieser et al. 2020, Appendix B (MuZero pseudocode): value_score is 0 for an unvisited
+// child; pb_c uses C_INIT = 1.25 and C_BASE = 19652.
+const FIRST_PLAY_VALUE: f64 = 0.0;
+const C_INIT: f64 = 1.25;
+const C_BASE: f64 = 19652.0;
+
+impl<G: Geometry> Guide<G> for Network {
+    fn evaluate(&mut self, board: Board<G>, priors: &mut [f64]) -> Option<f64> {
+        let forecast = self.net.forecast(board, &self.device)?;
+        let mut total = 0.0;
+        let mut value = 0.0_f64;
+        for (column, prior) in board.playable().zip(priors.iter_mut()) {
+            let expected = f64::from(forecast.expected_at(column)?);
+            *prior = expected;
+            total += expected;
+            value = value.max(expected);
+        }
+        let scale = if total > 0.0 { total.recip() } else { 0.0 };
+        for prior in priors {
+            *prior *= scale;
+        }
+        Some(value)
+    }
+
+    fn first_play_value(&self) -> f64 {
+        FIRST_PLAY_VALUE
+    }
+
+    fn bonus(&self, parent_visits: u32, child_visits: u32, prior: f64) -> f64 {
+        let parent = f64::from(parent_visits);
+        let scale = ((parent + C_BASE + 1.0) / C_BASE).ln() + C_INIT;
+        scale * prior * parent.sqrt() / (1.0 + f64::from(child_visits))
     }
 }
 

@@ -16,7 +16,7 @@ use c4::tournament::{Entrant, PERFECT_TABLE_BITS};
 
 const USAGE: &str =
     "usage: accuracy <8x7|9x8> <labelled.txt> <held-out|all> <entrant> <ms_per_move> <workers> [limit]
-entrants: safe-random, alpha-beta-handcrafted, alpha-beta-learned, perfect, mcts, network, allis";
+entrants: safe-random, alpha-beta-handcrafted, alpha-beta-learned, perfect, mcts, network, network-mcts, allis";
 const PHASES: [RangeInclusive<u32>; 10] = [
     10..=12,
     14..=15,

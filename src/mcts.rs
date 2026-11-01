@@ -1,5 +1,4 @@
-use std::iter::successors;
-use std::ops::ControlFlow;
+use std::ops::{ControlFlow, Range};
 use std::time::Instant;
 
 use crate::board::{Board, Geometry};
@@ -8,6 +7,7 @@ use crate::random::{SplitMix, pick};
 
 // UCB1 exploration constant: Auer, Cesa-Bianchi, Fischer 2002.
 const EXPLORATION: f64 = std::f64::consts::SQRT_2;
+const FIRST_PLAY_VALUE: f64 = 0.0;
 const ROOT: usize = 0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,31 +16,72 @@ pub struct Budget {
     pub simulations: Option<u32>,
 }
 
-#[derive(Clone, Copy)]
+pub trait Guide<G: Geometry> {
+    fn evaluate(&mut self, board: Board<G>, priors: &mut [f64]) -> Option<f64>;
+    fn bonus(&self, parent_visits: u32, child_visits: u32, prior: f64) -> f64;
+    fn first_play_value(&self) -> f64;
+}
+
+pub struct Playouts {
+    rng: SplitMix,
+}
+
+impl Playouts {
+    const fn new(seed: u64) -> Self {
+        Self {
+            rng: SplitMix::new(seed),
+        }
+    }
+}
+
+impl<G: Geometry> Guide<G> for Playouts {
+    fn evaluate(&mut self, board: Board<G>, _priors: &mut [f64]) -> Option<f64> {
+        Some(playout(&mut self.rng, board).score())
+    }
+
+    fn first_play_value(&self) -> f64 {
+        FIRST_PLAY_VALUE
+    }
+
+    fn bonus(&self, parent_visits: u32, child_visits: u32, _prior: f64) -> f64 {
+        if child_visits == 0 {
+            return f64::INFINITY;
+        }
+        EXPLORATION * (f64::from(parent_visits).ln() / f64::from(child_visits)).sqrt()
+    }
+}
+
 struct Node<G: Geometry> {
     board: Board<G>,
     column: Option<u32>,
     parent: Option<usize>,
-    first_child: Option<usize>,
-    next_sibling: Option<usize>,
-    untried: u32,
+    children: Range<usize>,
+    prior: f64,
     visits: u32,
-    half_points: u32,
+    value_sum: f64,
     ended: Option<Outcome>,
 }
 
-pub struct Uct<G: Geometry> {
+pub struct Uct<G: Geometry, P: Guide<G> = Playouts> {
     nodes: Vec<Node<G>>,
-    rng: SplitMix,
+    guide: P,
+    priors: Vec<f64>,
 }
 
-impl<G: Geometry> Uct<G> {
+impl<G: Geometry> Uct<G, Playouts> {
     #[must_use]
     pub const fn new(seed: u64) -> Self {
-        const { assert!(G::COLUMNS <= u32::BITS, "columns must fit a u32 mask") };
+        Self::with_guide(Playouts::new(seed))
+    }
+}
+
+impl<G: Geometry, P: Guide<G>> Uct<G, P> {
+    #[must_use]
+    pub const fn with_guide(guide: P) -> Self {
         Self {
             nodes: Vec::new(),
-            rng: SplitMix::new(seed),
+            guide,
+            priors: Vec::new(),
         }
     }
 
@@ -52,11 +93,10 @@ impl<G: Geometry> Uct<G> {
             board,
             column: None,
             parent: None,
-            first_child: None,
-            next_sibling: None,
-            untried: playable_mask(board),
+            children: 0..0,
+            prior: 0.0,
             visits: 0,
-            half_points: 0,
+            value_sum: 0.0,
             ended: None,
         });
         let mut done: u32 = 0;
@@ -71,93 +111,91 @@ impl<G: Geometry> Uct<G> {
 
     fn simulate(&mut self) -> Option<()> {
         let leaf = self.descend(ROOT)?;
-        let ended = self.nodes[leaf].ended;
-        let board = self.nodes[leaf].board;
-        let outcome = ended.unwrap_or_else(|| self.playout(board));
-        self.backpropagate(leaf, outcome);
+        let value = match self.nodes[leaf].ended {
+            Some(outcome) => outcome.score(),
+            None => self.expand(leaf)?,
+        };
+        self.backpropagate(leaf, value);
         Some(())
     }
 
-    fn descend(&mut self, mut node: usize) -> Option<usize> {
-        while self.nodes[node].ended.is_none() && self.nodes[node].untried == 0 {
+    fn descend(&self, mut node: usize) -> Option<usize> {
+        while self.nodes[node].ended.is_none() && !self.nodes[node].children.is_empty() {
             node = self.select_child(node)?;
         }
-        if self.nodes[node].ended.is_some() {
-            return Some(node);
-        }
-        self.expand(node)
+        Some(node)
     }
 
-    fn expand(&mut self, parent: usize) -> Option<usize> {
-        let board = self.nodes[parent].board;
-        let untried = self.nodes[parent].untried;
-        let column = pick(&mut self.rng, board, |col| untried & bit(col) != 0)?;
-        let mut next = board;
-        next.play(column);
-        let child = self.nodes.len();
-        let next_sibling = self.nodes[parent].first_child;
-        self.nodes[parent].untried &= !bit(column);
-        self.nodes.push(Node {
-            board: next,
-            column: Some(column),
-            parent: Some(parent),
-            first_child: None,
-            next_sibling,
-            untried: playable_mask(next),
-            visits: 0,
-            half_points: 0,
-            ended: after(board, column).map(Outcome::flip),
-        });
-        self.nodes[parent].first_child = Some(child);
-        Some(child)
+    fn expand(&mut self, leaf: usize) -> Option<f64> {
+        let board = self.nodes[leaf].board;
+        self.priors.clear();
+        self.priors.resize(board.playable().count(), 0.0);
+        let value = self.guide.evaluate(board, &mut self.priors)?;
+        let first = self.nodes.len();
+        for (column, &prior) in board.playable().zip(&self.priors) {
+            let mut next = board;
+            next.play(column);
+            self.nodes.push(Node {
+                board: next,
+                column: Some(column),
+                parent: Some(leaf),
+                children: 0..0,
+                prior,
+                visits: 0,
+                value_sum: 0.0,
+                ended: child_ended(board, column),
+            });
+        }
+        self.nodes[leaf].children = first..self.nodes.len();
+        Some(value)
     }
 
     fn select_child(&self, parent: usize) -> Option<usize> {
-        let ln_parent = f64::from(self.nodes[parent].visits).ln();
-        children(&self.nodes, parent).max_by(|&left, &right| {
-            self.score(left, ln_parent)
-                .total_cmp(&self.score(right, ln_parent))
+        let parent_visits = self.nodes[parent].visits;
+        self.nodes[parent].children.clone().max_by(|&left, &right| {
+            self.score(left, parent_visits)
+                .total_cmp(&self.score(right, parent_visits))
         })
     }
 
-    fn score(&self, child: usize, ln_parent: f64) -> f64 {
+    fn value(&self, child: usize) -> f64 {
         let node = &self.nodes[child];
-        let visits = f64::from(node.visits);
-        let mean = f64::from(node.half_points) / (f64::from(Outcome::Win.half_points()) * visits);
-        EXPLORATION.mul_add((ln_parent / visits).sqrt(), mean)
+        if node.visits == 0 {
+            return self.guide.first_play_value();
+        }
+        node.value_sum / f64::from(node.visits)
     }
 
-    fn playout(&mut self, board: Board<G>) -> Outcome {
-        let rng = &mut self.rng;
-        (0..)
-            .try_fold(board, |current, ply| step(rng, current, ply))
-            .break_value()
-            .unwrap_or(Outcome::Draw)
+    fn score(&self, child: usize, parent_visits: u32) -> f64 {
+        let node = &self.nodes[child];
+        match node.ended {
+            Some(Outcome::Loss) => f64::INFINITY,
+            Some(Outcome::Win) => f64::NEG_INFINITY,
+            Some(Outcome::Draw) | None => {
+                self.value(child) + self.guide.bonus(parent_visits, node.visits, node.prior)
+            }
+        }
     }
 
-    fn backpropagate(&mut self, leaf: usize, outcome: Outcome) {
+    fn backpropagate(&mut self, leaf: usize, value: f64) {
         let mut node = Some(leaf);
-        let mut value = outcome;
+        let mut side_to_move = value;
         while let Some(current) = node {
             let stats = &mut self.nodes[current];
             stats.visits += 1;
-            stats.half_points += value.flip().half_points();
+            stats.value_sum += 1.0 - side_to_move;
             node = stats.parent;
-            value = value.flip();
+            side_to_move = 1.0 - side_to_move;
         }
     }
 
     fn most_visited(&self) -> Option<u32> {
-        children(&self.nodes, ROOT)
+        self.nodes[ROOT]
+            .children
+            .clone()
             .max_by_key(|&child| self.nodes[child].visits)
             .and_then(|child| self.nodes[child].column)
     }
-}
-
-fn children<G: Geometry>(nodes: &[Node<G>], parent: usize) -> impl Iterator<Item = usize> + '_ {
-    successors(nodes[parent].first_child, move |&child| {
-        nodes[child].next_sibling
-    })
 }
 
 fn after<G: Geometry>(board: Board<G>, column: u32) -> Option<Outcome> {
@@ -167,6 +205,21 @@ fn after<G: Geometry>(board: Board<G>, column: u32) -> Option<Outcome> {
     let mut next = board;
     next.play(column);
     next.playable().next().is_none().then_some(Outcome::Draw)
+}
+
+fn child_ended<G: Geometry>(board: Board<G>, column: u32) -> Option<Outcome> {
+    after(board, column).map(Outcome::flip).or_else(|| {
+        let mut next = board;
+        next.play(column);
+        next.can_win().then_some(Outcome::Win)
+    })
+}
+
+fn playout<G: Geometry>(rng: &mut SplitMix, board: Board<G>) -> Outcome {
+    (0..)
+        .try_fold(board, |current, ply| step(rng, current, ply))
+        .break_value()
+        .unwrap_or(Outcome::Draw)
 }
 
 const fn seen_from_start(result: Outcome, ply: u32) -> Outcome {
@@ -189,12 +242,4 @@ fn step<G: Geometry>(
             ControlFlow::Break(seen_from_start(result, ply))
         })
     })
-}
-
-fn playable_mask<G: Geometry>(board: Board<G>) -> u32 {
-    board.playable().fold(0, |mask, col| mask | bit(col))
-}
-
-const fn bit(column: u32) -> u32 {
-    1 << column
 }

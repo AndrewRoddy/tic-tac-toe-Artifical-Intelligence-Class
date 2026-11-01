@@ -215,6 +215,7 @@ fn standings_hand_computed() {
         row(Entrant::Perfect, [2, 0, 1, 1]),
         row(Entrant::Mcts, [0, 0, 0, 0]),
         row(Entrant::Network, [0, 0, 0, 0]),
+        row(Entrant::NetworkMcts, [0, 0, 0, 0]),
         row(Entrant::Allis, [0, 0, 0, 0]),
     ];
     assert_eq!(table, expected);

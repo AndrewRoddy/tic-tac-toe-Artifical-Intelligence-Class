@@ -16,13 +16,14 @@ const ANCHOR: Entrant = Entrant::SafeRandom;
 const ELO_PER_LOGIT: f64 = ELO_SCALE / LN_10;
 pub const PERFECT_TABLE_BITS: u32 = 21;
 
-pub const ROSTER: [Entrant; 7] = [
+pub const ROSTER: [Entrant; 8] = [
     Entrant::SafeRandom,
     Entrant::Handcrafted,
     Entrant::Learned,
     Entrant::Perfect,
     Entrant::Mcts,
     Entrant::Network,
+    Entrant::NetworkMcts,
     Entrant::Allis,
 ];
 
@@ -34,6 +35,7 @@ pub enum Entrant {
     Perfect,
     Mcts,
     Network,
+    NetworkMcts,
     Allis,
 }
 
@@ -47,6 +49,7 @@ impl Entrant {
             Self::Perfect => "perfect",
             Self::Mcts => "mcts",
             Self::Network => "network",
+            Self::NetworkMcts => "network-mcts",
             Self::Allis => "allis",
         }
     }
@@ -72,6 +75,7 @@ impl Entrant {
             Self::Perfect => Box::new(Perfect::<G>::new(perfect_table_bits)),
             Self::Mcts => Box::new(Mcts::<G>::new(seed)),
             Self::Network => Box::new(Network::shipped()?),
+            Self::NetworkMcts => Box::new(Mcts::<G, Network>::shipped()?),
             Self::Allis => Box::new(Allis::<G>::default()),
         };
         Some(agent)

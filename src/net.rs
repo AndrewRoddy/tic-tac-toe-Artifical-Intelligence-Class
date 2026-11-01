@@ -192,6 +192,15 @@ pub struct Forecast {
     pub columns: Vec<Odds>,
 }
 
+impl Forecast {
+    #[must_use]
+    pub fn expected_at(&self, column: u32) -> Option<f32> {
+        self.columns
+            .get(to_usize(column))
+            .map(|odds| odds.expected())
+    }
+}
+
 fn forecast_from(probabilities: &[f32]) -> Option<Forecast> {
     let columns = probabilities
         .chunks_exact(CLASSES)

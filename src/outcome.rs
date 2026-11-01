@@ -28,6 +28,11 @@ impl Outcome {
     }
 
     #[must_use]
+    pub fn score(self) -> f64 {
+        f64::from(self.half_points()) / f64::from(HALF_POINTS_PER_WIN)
+    }
+
+    #[must_use]
     pub const fn symbol(self) -> char {
         match self {
             Self::Win => '+',
