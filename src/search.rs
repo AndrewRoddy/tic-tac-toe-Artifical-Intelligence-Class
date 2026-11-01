@@ -1,13 +1,13 @@
 use std::time::Instant;
 
 use crate::board::{Board, Geometry};
+use crate::clock::Clock;
 
 const WIN_SCORE: i64 = 1_000_000;
 const DRAW_SCORE: i64 = 0;
 const INFINITY: i64 = 2 * WIN_SCORE;
 const GOOD_ROW_THREAT: i32 = 4;
 const OTHER_ROW_THREAT: i32 = 1;
-const CLOCK_INTERVAL: u64 = 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Features(pub [u32; 4]);
@@ -55,14 +55,8 @@ struct Node {
 }
 
 struct Search {
-    nodes: u64,
-    deadline: Instant,
+    clock: Clock,
     weights: Weights,
-}
-
-fn expired(search: &mut Search) -> bool {
-    search.nodes += 1;
-    search.nodes.is_multiple_of(CLOCK_INTERVAL) && Instant::now() >= search.deadline
 }
 
 fn root<G: Geometry>(search: &mut Search, board: Board<G>, depth: u32) -> Option<(i64, u32)> {
@@ -84,7 +78,7 @@ fn root<G: Geometry>(search: &mut Search, board: Board<G>, depth: u32) -> Option
 }
 
 fn negamax<G: Geometry>(search: &mut Search, board: Board<G>, node: Node) -> Option<i64> {
-    if expired(search) {
+    if search.clock.expired() {
         return None;
     }
     if board.can_win() {
@@ -132,8 +126,7 @@ pub fn best_column<G: Geometry>(
     weights: Weights,
 ) -> Option<u32> {
     let mut search = Search {
-        nodes: 0,
-        deadline,
+        clock: Clock::new(Some(deadline)),
         weights,
     };
     let mut best = None;

@@ -5,6 +5,7 @@ pub mod agent;
 pub mod arena;
 pub mod bits;
 pub mod board;
+pub mod clock;
 pub mod dataset;
 pub mod learn;
 pub mod mcts;

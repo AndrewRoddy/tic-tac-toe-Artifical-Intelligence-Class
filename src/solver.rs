@@ -2,9 +2,8 @@ use std::time::Instant;
 
 use crate::bits::Bits;
 use crate::board::{Board, COLUMN_LIMIT, Geometry};
+use crate::clock::Clock;
 use crate::outcome::Outcome;
-
-const CLOCK_INTERVAL: u64 = 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Label {
@@ -65,8 +64,7 @@ impl<B: Bits> Bucket<B> {
 
 pub struct Solver<G: Geometry> {
     buckets: Vec<Bucket<G::Bits>>,
-    nodes: u64,
-    deadline: Option<Instant>,
+    clock: Clock,
 }
 
 impl<G: Geometry> Solver<G> {
@@ -81,14 +79,13 @@ impl<G: Geometry> Solver<G> {
                 };
                 1 << table_bits
             ],
-            nodes: 0,
-            deadline: None,
+            clock: Clock::new(None),
         }
     }
 
     #[must_use]
     pub fn solve(&mut self, board: Board<G>, deadline: Option<Instant>) -> Option<Outcome> {
-        self.deadline = deadline;
+        self.clock = Clock::new(deadline);
         self.negamax(board, Outcome::Loss, Outcome::Win)
     }
 
@@ -140,15 +137,12 @@ impl<G: Geometry> Solver<G> {
         if alpha >= beta {
             return Some(alpha);
         }
-        if self.nodes.is_multiple_of(CLOCK_INTERVAL)
-            && self.deadline.is_some_and(|limit| Instant::now() >= limit)
-        {
+        if self.clock.expired() {
             return None;
         }
-        self.nodes += 1;
-        let before = self.nodes;
+        let before = self.clock.nodes();
         let alpha = search(self, board, alpha, beta)?;
-        let effort = u32::try_from(self.nodes - before).unwrap_or(u32::MAX);
+        let effort = u32::try_from(self.clock.nodes() - before).unwrap_or(u32::MAX);
         let entry = Entry {
             effort,
             ..Entry::new(key, alpha, low, high)
