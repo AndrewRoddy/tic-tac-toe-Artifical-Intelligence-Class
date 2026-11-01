@@ -16,7 +16,7 @@ use c4::tournament::{Entrant, PERFECT_TABLE_BITS, ROSTER};
 
 const USAGE: &str =
     "usage: accuracy <8x7|9x8> <labelled.txt> <held-out|all> <entrant> <ms_per_move> <workers> [limit]
-entrants: safe-random, alpha-beta-handcrafted, alpha-beta-learned, perfect, mcts, allis";
+entrants: safe-random, alpha-beta-handcrafted, alpha-beta-learned, perfect, mcts, network, allis";
 const PHASES: [RangeInclusive<u32>; 10] = [
     10..=12,
     14..=15,
@@ -166,7 +166,7 @@ fn execute<G: Geometry + 'static>(request: &Request) -> Result<(), Box<dyn Error
         request.workers.get(),
         |position| answer::<G>(position, request.entrant, request.per_move),
         |answer| {
-            if report.record(&answer).is_some() {
+            if answer.and_then(|answer| report.record(&answer)).is_some() {
                 ControlFlow::Continue(())
             } else {
                 failed = true;
@@ -175,7 +175,7 @@ fn execute<G: Geometry + 'static>(request: &Request) -> Result<(), Box<dyn Error
         },
     );
     if failed {
-        return Err("position without a legal labelled column".into());
+        return Err("agent unavailable or position without a legal labelled column".into());
     }
     print_report(request, &report);
     Ok(())
@@ -200,15 +200,15 @@ fn answer<G: Geometry + 'static>(
     position: &Position<G>,
     entrant: Entrant,
     per_move: Duration,
-) -> Answer {
+) -> Option<Answer> {
     let board = position.labelled.position.board;
-    let mut agent = entrant.build::<G>(position.seed, PERFECT_TABLE_BITS);
+    let mut agent = entrant.build::<G>(position.seed, PERFECT_TABLE_BITS)?;
     let column = agent.choose(board, Instant::now() + per_move);
-    Answer {
+    Some(Answer {
         columns: position.labelled.columns.clone(),
         stones: G::COLUMNS * G::ROWS - board.empty_cells(),
         column,
-    }
+    })
 }
 
 fn print_report(request: &Request, report: &Report) {

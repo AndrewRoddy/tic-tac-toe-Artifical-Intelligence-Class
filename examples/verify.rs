@@ -286,7 +286,7 @@ fn play_from(
     columns: &mut Vec<u32>,
     mover: Colour,
 ) -> Option<Vec<u32>> {
-    if columns.len() == stacks.iter().map(Vec::len).sum() {
+    if columns.len() == stacks.iter().map(Vec::len).sum::<usize>() {
         return Some(columns.clone());
     }
     for (index, stack) in stacks.iter().enumerate() {

@@ -9,6 +9,7 @@ pub mod clock;
 pub mod dataset;
 pub mod learn;
 pub mod mcts;
+pub mod net;
 pub mod outcome;
 pub mod parallel;
 pub mod random;

@@ -1,7 +1,11 @@
 use std::time::Instant;
 
+use burn::backend::Flex;
+use burn::backend::flex::FlexDevice;
+
 use crate::board::{Board, Geometry};
 use crate::mcts::{Budget, Uct};
+use crate::net::{self, Net};
 use crate::outcome::Outcome;
 use crate::random::{SplitMix, pick};
 use crate::rules;
@@ -109,6 +113,29 @@ impl<G: Geometry> Agent<G> for Mcts<G> {
                     simulations: None,
                 },
             )
+            .unwrap_or(0)
+    }
+}
+
+pub struct Network {
+    net: Net<Flex>,
+    device: FlexDevice,
+}
+
+impl Network {
+    #[must_use]
+    pub fn shipped() -> Option<Self> {
+        let device = FlexDevice;
+        net::shipped::<Flex>(&device).map(|net| Self { net, device })
+    }
+}
+
+impl<G: Geometry> Agent<G> for Network {
+    fn choose(&mut self, board: Board<G>, _deadline: Instant) -> u32 {
+        debug_assert!(board.playable().next().is_some());
+        self.net
+            .forecast(board, &self.device)
+            .and_then(|forecast| net::choose(board, &forecast))
             .unwrap_or(0)
     }
 }

@@ -92,7 +92,8 @@ fn execute(request: &Request) -> Result<(), Box<dyn Error>> {
         }
         records.push(record);
         ControlFlow::Continue(())
-    });
+    })
+    .ok_or("could not build network agent")?;
     if let Some(error) = failure {
         return Err(error);
     }

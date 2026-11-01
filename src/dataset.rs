@@ -106,7 +106,12 @@ pub fn parse_column_labelled<G: Geometry>(line: &str) -> Option<ColumnLabelled<G
     if u32::try_from(columns.len()).ok()? != G::COLUMNS {
         return None;
     }
-    Some(ColumnLabelled {
+    let consistent = columns
+        .iter()
+        .zip(0..G::COLUMNS)
+        .all(|(label, col)| label.is_some() == board.can_play(col));
+    let best = columns.iter().flatten().max().copied()?;
+    (consistent && best == result).then_some(ColumnLabelled {
         position: Labelled { board, result },
         columns,
     })

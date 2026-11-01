@@ -2,7 +2,7 @@ use std::f64::consts::LN_10;
 use std::ops::ControlFlow;
 use std::time::Duration;
 
-use crate::agent::{Agent, Allis, AlphaBeta, Mcts, Perfect, SafeRandom};
+use crate::agent::{Agent, Allis, AlphaBeta, Mcts, Network, Perfect, SafeRandom};
 use crate::arena::play;
 use crate::board::{Board, Geometry};
 use crate::dataset::Sample;
@@ -16,12 +16,13 @@ const ANCHOR: Entrant = Entrant::SafeRandom;
 const ELO_PER_LOGIT: f64 = ELO_SCALE / LN_10;
 pub const PERFECT_TABLE_BITS: u32 = 21;
 
-pub const ROSTER: [Entrant; 6] = [
+pub const ROSTER: [Entrant; 7] = [
     Entrant::SafeRandom,
     Entrant::Handcrafted,
     Entrant::Learned,
     Entrant::Perfect,
     Entrant::Mcts,
+    Entrant::Network,
     Entrant::Allis,
 ];
 
@@ -32,6 +33,7 @@ pub enum Entrant {
     Learned,
     Perfect,
     Mcts,
+    Network,
     Allis,
 }
 
@@ -44,6 +46,7 @@ impl Entrant {
             Self::Learned => "alpha-beta-learned",
             Self::Perfect => "perfect",
             Self::Mcts => "mcts",
+            Self::Network => "network",
             Self::Allis => "allis",
         }
     }
@@ -53,19 +56,21 @@ impl Entrant {
         self,
         seed: u64,
         perfect_table_bits: u32,
-    ) -> Box<dyn Agent<G>> {
-        match self {
+    ) -> Option<Box<dyn Agent<G>>> {
+        let agent: Box<dyn Agent<G>> = match self {
             Self::SafeRandom => Box::new(SafeRandom::new(seed)),
             Self::Handcrafted => Box::new(AlphaBeta::new(G::COLUMNS * G::ROWS, Weights::DEFAULT)),
             Self::Learned => Box::new(AlphaBeta::new(G::COLUMNS * G::ROWS, Weights::LEARNED)),
             Self::Perfect => Box::new(Perfect::<G>::new(perfect_table_bits)),
             Self::Mcts => Box::new(Mcts::<G>::new(seed)),
+            Self::Network => Box::new(Network::shipped()?),
             Self::Allis => Box::new(Allis::<G>::default()),
-        }
+        };
+        Some(agent)
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Settings {
     pub per_move: Duration,
     pub perfect_table_bits: u32,
@@ -119,33 +124,44 @@ pub struct Record {
     pub moves: Vec<u32>,
 }
 
-fn play_fixture<G: Geometry + 'static>(fixture: &Fixture<G>, settings: Settings) -> Record {
-    let table_bits = settings.perfect_table_bits;
-    let mut first = fixture.first.build::<G>(fixture.index, table_bits);
-    let mut second = fixture.second.build::<G>(fixture.index, table_bits);
+fn play_fixture<G: Geometry + 'static>(fixture: &Fixture<G>, settings: Settings) -> Option<Record> {
+    let mut first = fixture
+        .first
+        .build::<G>(fixture.index, settings.perfect_table_bits)?;
+    let mut second = fixture
+        .second
+        .build::<G>(fixture.index, settings.perfect_table_bits)?;
     let game = play(fixture.start, &mut *first, &mut *second, settings.per_move);
-    Record {
+    Some(Record {
         game: fixture.index,
         opening: fixture.opening,
         first: fixture.first,
         second: fixture.second,
         outcome: game.outcome,
         moves: game.moves,
-    }
+    })
 }
 
 pub fn run<G: Geometry + 'static>(
     fixtures: &[Fixture<G>],
     settings: Settings,
     threads: usize,
-    sink: impl FnMut(Record) -> ControlFlow<()>,
-) {
+    mut sink: impl FnMut(Record) -> ControlFlow<()>,
+) -> Option<()> {
+    let mut complete = true;
     parallel::map_each(
         fixtures,
         threads,
         |fixture| play_fixture(fixture, settings),
-        sink,
+        |record| {
+            let Some(record) = record else {
+                complete = false;
+                return ControlFlow::Break(());
+            };
+            sink(record)
+        },
     );
+    complete.then_some(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

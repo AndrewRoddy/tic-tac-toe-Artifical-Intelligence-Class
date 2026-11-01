@@ -4,6 +4,8 @@ use crate::board::{Board, Geometry};
 const GOLDEN_GAMMA: u64 = 0x9E37_79B9_7F4A_7C15;
 const MIX_FIRST: u64 = 0xBF58_476D_1CE4_E5B9;
 const MIX_SECOND: u64 = 0x94D0_49BB_1331_11EB;
+const TOP_BITS_SHIFT: u32 = 48;
+const UNIT_STEPS: f32 = 65_536.0;
 
 pub struct SplitMix(u64);
 
@@ -24,6 +26,19 @@ impl SplitMix {
     fn below(&mut self, bound: usize) -> Option<usize> {
         let size = u64::try_from(bound).ok().filter(|&count| count > 0)?;
         usize::try_from(self.draw() % size).ok()
+    }
+
+    pub fn shuffle<T>(&mut self, items: &mut [T]) {
+        for end in (1..items.len()).rev() {
+            let index = self.below(end + 1).unwrap_or(end);
+            items.swap(index, end);
+        }
+    }
+
+    pub fn symmetric(&mut self, bound: f32) -> f32 {
+        let top = u16::try_from(self.draw() >> TOP_BITS_SHIFT).unwrap_or_default();
+        let fraction = f32::from(top) / UNIT_STEPS;
+        fraction.mul_add(2.0, -1.0) * bound
     }
 }
 

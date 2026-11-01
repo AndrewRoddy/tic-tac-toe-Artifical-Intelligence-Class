@@ -41,6 +41,13 @@ pub struct Threats {
     pub opponent_other: u32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Cell {
+    Empty,
+    Mover,
+    Opponent,
+}
+
 #[derive(Clone, Copy)]
 pub struct Board<G: Geometry> {
     current: G::Bits,
@@ -118,6 +125,18 @@ impl<G: Geometry> Board<G> {
 
     pub fn empty_cells(&self) -> u32 {
         G::COLUMNS * G::ROWS - self.mask.count_ones()
+    }
+
+    pub fn cell(&self, col: u32, row: u32) -> Cell {
+        debug_assert!(col < G::COLUMNS && row < G::ROWS);
+        let bit = Self::bottom(col) << row;
+        if self.mask & bit == G::Bits::ZERO {
+            Cell::Empty
+        } else if self.current & bit == G::Bits::ZERO {
+            Cell::Opponent
+        } else {
+            Cell::Mover
+        }
     }
 
     pub fn threat_rows(&self) -> Threats {

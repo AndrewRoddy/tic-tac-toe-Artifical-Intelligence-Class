@@ -17,10 +17,12 @@ const PER_MOVE: Duration = Duration::from_millis(100);
 const WORKERS: usize = 4;
 const PERFECT_TABLE_BITS: u32 = 16;
 const PAIR_ROSTER: [Entrant; 2] = [Entrant::SafeRandom, Entrant::Perfect];
-const SETTINGS: Settings = Settings {
-    per_move: PER_MOVE,
-    perfect_table_bits: PERFECT_TABLE_BITS,
-};
+const fn settings() -> Settings {
+    Settings {
+        per_move: PER_MOVE,
+        perfect_table_bits: PERFECT_TABLE_BITS,
+    }
+}
 const ELO_SCALE: f64 = 400.0;
 const ELO_TOLERANCE: f64 = 0.5;
 const TRANSITIVE_GAMES: u32 = 10_000;
@@ -96,10 +98,11 @@ fn check_run<G: Geometry + 'static>() {
     let openings = unique_samples::<G>(SEED, OPENING_COUNT, LOW, HIGH);
     let fixtures = schedule(&PAIR_ROSTER, &openings);
     let mut records: Vec<Record> = Vec::new();
-    run(&fixtures, SETTINGS, WORKERS, |record| {
+    let finished = run(&fixtures, settings(), WORKERS, |record| {
         records.push(record);
         ControlFlow::Continue(())
     });
+    assert!(finished.is_some());
     assert_eq!(records.len(), fixtures.len());
     records.sort_by_key(|record| record.game);
     for (fixture, record) in fixtures.iter().zip(&records) {
@@ -117,10 +120,11 @@ fn check_early_stop<G: Geometry + 'static>() {
     let openings = unique_samples::<G>(SEED, OPENING_COUNT, LOW, HIGH);
     let fixtures = schedule(&PAIR_ROSTER, &openings);
     let mut seen = 0_usize;
-    run(&fixtures, SETTINGS, WORKERS, |_| {
+    let finished = run(&fixtures, settings(), WORKERS, |_| {
         seen += 1;
         ControlFlow::Break(())
     });
+    assert!(finished.is_some());
     assert_eq!(seen, 1);
 }
 
@@ -208,6 +212,7 @@ fn standings_hand_computed() {
         row(Entrant::Learned, [1, 1, 0, 0]),
         row(Entrant::Perfect, [2, 0, 1, 1]),
         row(Entrant::Mcts, [0, 0, 0, 0]),
+        row(Entrant::Network, [0, 0, 0, 0]),
         row(Entrant::Allis, [0, 0, 0, 0]),
     ];
     assert_eq!(table, expected);
