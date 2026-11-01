@@ -4,12 +4,11 @@ use std::io::{BufRead, BufReader};
 use std::process::ExitCode;
 
 use c4::board::B87;
-use c4::dataset::{Labelled, parse_line};
+use c4::dataset::{Labelled, parse_line, split};
 use c4::learn::{Model, Row, constant_row, evaluate, fit, handcrafted_row, learned_row};
 use c4::outcome::Outcome;
 
 const DATA: &str = "data/train_8x7.txt";
-const TRAIN_LINES: usize = 90_000;
 const SCALE: f64 = 1_000.0;
 
 fn main() -> ExitCode {
@@ -24,9 +23,11 @@ fn main() -> ExitCode {
 
 fn run(path: &str) -> Result<(), Box<dyn Error>> {
     let samples = read_samples(path)?;
-    let (train, held) = samples
-        .split_at_checked(TRAIN_LINES)
-        .ok_or("data has fewer lines than the training split")?;
+    let parts = split(samples);
+    let (train, held) = (parts.train.as_slice(), parts.held.as_slice());
+    if held.is_empty() {
+        return Err("data has no held-out lines".into());
+    }
     let wins = train
         .iter()
         .filter(|sample| sample.result == Outcome::Win)

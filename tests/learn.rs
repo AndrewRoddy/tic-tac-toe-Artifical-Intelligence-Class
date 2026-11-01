@@ -3,14 +3,13 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 use c4::board::B87;
-use c4::dataset::{Labelled, parse_line};
+use c4::dataset::{Labelled, parse_line, split};
 use c4::learn::{Model, Row, constant_row, evaluate, fit, handcrafted_row, learned_row};
 use c4::outcome::Outcome;
 use c4::search::Weights;
 
 const DATA: &str = "data/train_8x7.txt";
-const TRAIN_LINES: usize = 90_000;
-const HELD_LINES: usize = 10_000;
+const DATA_LINES: usize = 100_000;
 const FIT_LINES: usize = 2_000;
 const SCALE: f64 = 1_000.0;
 const INTERCEPT: f64 = 0.982;
@@ -51,8 +50,8 @@ fn shipped() -> Model {
 
 #[test]
 fn shipped_beats_handcrafted() -> Result<(), Box<dyn Error>> {
-    let train = slice(0, TRAIN_LINES)?;
-    let held = slice(TRAIN_LINES, HELD_LINES)?;
+    let parts = split(slice(0, DATA_LINES)?);
+    let (train, held) = (parts.train, parts.held);
     let handcrafted =
         fit(&rows(&train, handcrafted_row)).ok_or("handcrafted fit did not converge")?;
     let baseline = evaluate(&handcrafted, &rows(&held, handcrafted_row)).log_loss;

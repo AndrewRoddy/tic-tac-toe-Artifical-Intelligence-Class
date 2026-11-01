@@ -51,19 +51,67 @@ pub struct Labelled<G: Geometry> {
     pub result: Outcome,
 }
 
+pub struct ColumnLabelled<G: Geometry> {
+    pub position: Labelled<G>,
+    pub columns: Vec<Option<Outcome>>,
+}
+
+pub struct Split<T> {
+    pub train: Vec<T>,
+    pub held: Vec<T>,
+}
+
+#[must_use]
+pub fn split<T>(lines: Vec<T>) -> Split<T> {
+    let mut parts = Split {
+        train: Vec::new(),
+        held: Vec::new(),
+    };
+    for (index, line) in lines.into_iter().enumerate() {
+        if held_out(index) {
+            parts.held.push(line);
+        } else {
+            parts.train.push(line);
+        }
+    }
+    parts
+}
+
+const TRAIN_LINES: usize = 90_000;
+
+const fn held_out(index: usize) -> bool {
+    index >= TRAIN_LINES
+}
+
 #[must_use]
 pub fn parse_line<G: Geometry>(line: &str) -> Option<Labelled<G>> {
+    parse_column_labelled(line).map(|labelled| labelled.position)
+}
+
+#[must_use]
+pub fn parse_column_labelled<G: Geometry>(line: &str) -> Option<ColumnLabelled<G>> {
     let fields: Vec<&str> = line.split(' ').collect();
     let [moves, result, columns] = fields.as_slice() else {
         return None;
     };
     let board = Board::from_moves(moves)?;
     let result = Outcome::from_symbol(single_char(result)?)?;
-    let columns_valid = columns
+    let columns = columns
         .chars()
-        .all(|symbol| symbol == '.' || Outcome::from_symbol(symbol).is_some());
-    columns_valid.then_some(Labelled { board, result })
+        .map(|symbol| match symbol {
+            '.' => Some(None),
+            _ => Outcome::from_symbol(symbol).map(Some),
+        })
+        .collect::<Option<Vec<_>>>()?;
+    if u32::try_from(columns.len()).ok()? != G::COLUMNS {
+        return None;
+    }
+    Some(ColumnLabelled {
+        position: Labelled { board, result },
+        columns,
+    })
 }
+
 #[must_use]
 pub fn parse_pons<G: Geometry>(line: &str) -> Option<Labelled<G>> {
     let (moves, score) = line.split_once(' ')?;

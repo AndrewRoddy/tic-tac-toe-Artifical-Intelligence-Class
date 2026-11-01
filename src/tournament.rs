@@ -1,8 +1,5 @@
 use std::f64::consts::LN_10;
 use std::ops::ControlFlow;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{self, Sender};
-use std::thread;
 use std::time::Duration;
 
 use crate::agent::{Agent, Allis, AlphaBeta, Mcts, Perfect, SafeRandom};
@@ -11,11 +8,13 @@ use crate::board::{Board, Geometry};
 use crate::dataset::Sample;
 use crate::learn::{Row, fit};
 use crate::outcome::Outcome;
+use crate::parallel;
 use crate::search::Weights;
 
 const ELO_SCALE: f64 = 400.0;
 const ANCHOR: Entrant = Entrant::SafeRandom;
 const ELO_PER_LOGIT: f64 = ELO_SCALE / LN_10;
+pub const PERFECT_TABLE_BITS: u32 = 21;
 
 pub const ROSTER: [Entrant; 6] = [
     Entrant::SafeRandom,
@@ -49,7 +48,12 @@ impl Entrant {
         }
     }
 
-    fn build<G: Geometry + 'static>(self, seed: u64, perfect_table_bits: u32) -> Box<dyn Agent<G>> {
+    #[must_use]
+    pub fn build<G: Geometry + 'static>(
+        self,
+        seed: u64,
+        perfect_table_bits: u32,
+    ) -> Box<dyn Agent<G>> {
         match self {
             Self::SafeRandom => Box::new(SafeRandom::new(seed)),
             Self::Handcrafted => Box::new(AlphaBeta::new(G::COLUMNS * G::ROWS, Weights::DEFAULT)),
@@ -134,33 +138,14 @@ pub fn run<G: Geometry + 'static>(
     fixtures: &[Fixture<G>],
     settings: Settings,
     threads: usize,
-    mut sink: impl FnMut(Record) -> ControlFlow<()>,
+    sink: impl FnMut(Record) -> ControlFlow<()>,
 ) {
-    debug_assert!(threads >= 1);
-    let next = AtomicUsize::new(0);
-    let (sender, receiver) = mpsc::channel();
-    thread::scope(|scope| {
-        for _ in 0..threads {
-            let sender = sender.clone();
-            let next = &next;
-            scope.spawn(move || work(fixtures, next, settings, &sender));
-        }
-        drop(sender);
-        receiver.iter().map(&mut sink).any(|flow| flow.is_break());
-    });
-}
-
-fn work<G: Geometry + 'static>(
-    fixtures: &[Fixture<G>],
-    next: &AtomicUsize,
-    settings: Settings,
-    sender: &Sender<Record>,
-) {
-    while let Some(fixture) = fixtures.get(next.fetch_add(1, Ordering::Relaxed)) {
-        if sender.send(play_fixture(fixture, settings)).is_err() {
-            return;
-        }
-    }
+    parallel::map_each(
+        fixtures,
+        threads,
+        |fixture| play_fixture(fixture, settings),
+        sink,
+    );
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

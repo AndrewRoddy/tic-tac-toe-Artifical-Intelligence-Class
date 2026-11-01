@@ -10,13 +10,13 @@ use std::time::Duration;
 use c4::board::{B98, Board, Geometry, format_moves};
 use c4::dataset::{Sample, unique_samples};
 use c4::tournament::{
-    ROSTER, Rating, Record, Settings, Standing, elo_ratings, run, schedule, standings,
+    PERFECT_TABLE_BITS, ROSTER, Rating, Record, Settings, Standing, elo_ratings, run, schedule,
+    standings,
 };
 
 const USAGE: &str = "usage: tournament <openings> <min_stones> <max_stones> <seed> <ms_per_move> <workers> [out.txt]
 workers: physical cores minus one";
 const CELLS: u32 = B98::COLUMNS * B98::ROWS;
-const PERFECT_TABLE_BITS: u32 = 21;
 
 struct Request {
     openings: usize,
