@@ -1,0 +1,334 @@
+study,board,agent,setting,metric,value,n,ci_low,ci_high,notes
+tournament_time_scaling,9x8,safe-random,500 ms/move,elo,0.0,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,safe-random,500 ms/move,win_rate,0.169,700,,,
+tournament_time_scaling,9x8,safe-random,500 ms/move,points,118.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,alpha-beta-handcrafted,500 ms/move,elo,666.3,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,alpha-beta-handcrafted,500 ms/move,win_rate,0.767,700,,,
+tournament_time_scaling,9x8,alpha-beta-handcrafted,500 ms/move,points,538.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,alpha-beta-learned,500 ms/move,elo,681.8,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,alpha-beta-learned,500 ms/move,win_rate,0.781,700,,,
+tournament_time_scaling,9x8,alpha-beta-learned,500 ms/move,points,548.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,perfect,500 ms/move,elo,84.6,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,perfect,500 ms/move,win_rate,0.243,700,,,
+tournament_time_scaling,9x8,perfect,500 ms/move,points,172.5,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,mcts,500 ms/move,elo,694.5,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,mcts,500 ms/move,win_rate,0.794,700,,,
+tournament_time_scaling,9x8,mcts,500 ms/move,points,556.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,network,500 ms/move,elo,34.4,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,network,500 ms/move,win_rate,0.201,700,,,
+tournament_time_scaling,9x8,network,500 ms/move,points,141.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,network-mcts,500 ms/move,elo,617.2,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,network-mcts,500 ms/move,win_rate,0.721,700,,,
+tournament_time_scaling,9x8,network-mcts,500 ms/move,points,506.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,allis,500 ms/move,elo,159.5,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,allis,500 ms/move,win_rate,0.311,700,,,
+tournament_time_scaling,9x8,allis,500 ms/move,points,220.5,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,safe-random,1000 ms/move,elo,0.0,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,safe-random,1000 ms/move,win_rate,0.167,700,,,
+tournament_time_scaling,9x8,safe-random,1000 ms/move,points,117.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,alpha-beta-handcrafted,1000 ms/move,elo,690.3,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,alpha-beta-handcrafted,1000 ms/move,win_rate,0.760,700,,,
+tournament_time_scaling,9x8,alpha-beta-handcrafted,1000 ms/move,points,533.5,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,alpha-beta-learned,1000 ms/move,elo,722.1,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,alpha-beta-learned,1000 ms/move,win_rate,0.789,700,,,
+tournament_time_scaling,9x8,alpha-beta-learned,1000 ms/move,points,553.5,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,perfect,1000 ms/move,elo,77.9,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,perfect,1000 ms/move,win_rate,0.234,700,,,
+tournament_time_scaling,9x8,perfect,1000 ms/move,points,166.5,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,mcts,1000 ms/move,elo,739.9,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,mcts,1000 ms/move,win_rate,0.806,700,,,
+tournament_time_scaling,9x8,mcts,1000 ms/move,points,564.5,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,network,1000 ms/move,elo,36.5,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,network,1000 ms/move,win_rate,0.201,700,,,
+tournament_time_scaling,9x8,network,1000 ms/move,points,141.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,network-mcts,1000 ms/move,elo,647.1,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,network-mcts,1000 ms/move,win_rate,0.721,700,,,
+tournament_time_scaling,9x8,network-mcts,1000 ms/move,points,506.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,allis,1000 ms/move,elo,160.4,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,allis,1000 ms/move,win_rate,0.307,700,,,
+tournament_time_scaling,9x8,allis,1000 ms/move,points,218.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,safe-random,5000 ms/move,elo,0.0,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,safe-random,5000 ms/move,win_rate,0.164,700,,,
+tournament_time_scaling,9x8,safe-random,5000 ms/move,points,115.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,alpha-beta-handcrafted,5000 ms/move,elo,680.8,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,alpha-beta-handcrafted,5000 ms/move,win_rate,0.749,700,,,
+tournament_time_scaling,9x8,alpha-beta-handcrafted,5000 ms/move,points,526.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,alpha-beta-learned,5000 ms/move,elo,687.1,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,alpha-beta-learned,5000 ms/move,win_rate,0.756,700,,,
+tournament_time_scaling,9x8,alpha-beta-learned,5000 ms/move,points,530.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,perfect,5000 ms/move,elo,87.0,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,perfect,5000 ms/move,win_rate,0.239,700,,,
+tournament_time_scaling,9x8,perfect,5000 ms/move,points,170.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,mcts,5000 ms/move,elo,754.4,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,mcts,5000 ms/move,win_rate,0.817,700,,,
+tournament_time_scaling,9x8,mcts,5000 ms/move,points,572.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,network,5000 ms/move,elo,39.9,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,network,5000 ms/move,win_rate,0.201,700,,,
+tournament_time_scaling,9x8,network,5000 ms/move,points,141.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,network-mcts,5000 ms/move,elo,686.3,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,network-mcts,5000 ms/move,win_rate,0.756,700,,,
+tournament_time_scaling,9x8,network-mcts,5000 ms/move,points,529.5,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,allis,5000 ms/move,elo,161.4,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,allis,5000 ms/move,win_rate,0.304,700,,,
+tournament_time_scaling,9x8,allis,5000 ms/move,points,216.5,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,safe-random,10000 ms/move,elo,0.0,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,safe-random,10000 ms/move,win_rate,0.166,700,,,
+tournament_time_scaling,9x8,safe-random,10000 ms/move,points,116.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,alpha-beta-handcrafted,10000 ms/move,elo,670.0,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,alpha-beta-handcrafted,10000 ms/move,win_rate,0.731,700,,,
+tournament_time_scaling,9x8,alpha-beta-handcrafted,10000 ms/move,points,514.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,alpha-beta-learned,10000 ms/move,elo,730.4,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,alpha-beta-learned,10000 ms/move,win_rate,0.786,700,,,
+tournament_time_scaling,9x8,alpha-beta-learned,10000 ms/move,points,552.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,perfect,10000 ms/move,elo,88.6,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,perfect,10000 ms/move,win_rate,0.243,700,,,
+tournament_time_scaling,9x8,perfect,10000 ms/move,points,172.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,mcts,10000 ms/move,elo,760.7,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,mcts,10000 ms/move,win_rate,0.813,700,,,
+tournament_time_scaling,9x8,mcts,10000 ms/move,points,570.5,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,network,10000 ms/move,elo,38.2,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,network,10000 ms/move,win_rate,0.201,700,,,
+tournament_time_scaling,9x8,network,10000 ms/move,points,141.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,network-mcts,10000 ms/move,elo,685.8,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,network-mcts,10000 ms/move,win_rate,0.747,700,,,
+tournament_time_scaling,9x8,network-mcts,10000 ms/move,points,524.0,700,,,"win 1, draw 0.5"
+tournament_time_scaling,9x8,allis,10000 ms/move,elo,150.4,700,,,safe-random anchored at 0; 50 openings x 28 pairs x 2 colours
+tournament_time_scaling,9x8,allis,10000 ms/move,win_rate,0.297,700,,,
+tournament_time_scaling,9x8,allis,10000 ms/move,points,210.5,700,,,"win 1, draw 0.5"
+versus_solver,8x7,safe-random,agent value win,kept_value_rate,0.545,198,0.476,0.613,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,safe-random,agent value draw,kept_value_rate,0.000,4,0.000,0.490,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,safe-random,agent value win+draw,kept_value_rate,0.535,202,0.466,0.602,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,safe-random,agent value loss (check),kept_value_rate,1.000,198,0.981,1.000,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,safe-random,all games,solver_expired,0,,,,
+versus_solver,8x7,safe-random,all games,solver_errors,0,,,,
+versus_solver,8x7,alpha-beta-handcrafted,agent value win,kept_value_rate,0.970,198,0.935,0.986,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,alpha-beta-handcrafted,agent value draw,kept_value_rate,0.000,4,0.000,0.490,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,alpha-beta-handcrafted,agent value win+draw,kept_value_rate,0.950,202,0.911,0.973,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,alpha-beta-handcrafted,agent value loss (check),kept_value_rate,1.000,198,0.981,1.000,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,alpha-beta-handcrafted,all games,solver_expired,0,,,,
+versus_solver,8x7,alpha-beta-handcrafted,all games,solver_errors,0,,,,
+versus_solver,8x7,alpha-beta-learned,agent value win,kept_value_rate,0.970,198,0.935,0.986,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,alpha-beta-learned,agent value draw,kept_value_rate,0.250,4,0.046,0.699,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,alpha-beta-learned,agent value win+draw,kept_value_rate,0.955,202,0.918,0.976,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,alpha-beta-learned,agent value loss (check),kept_value_rate,1.000,198,0.981,1.000,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,alpha-beta-learned,all games,solver_expired,0,,,,
+versus_solver,8x7,alpha-beta-learned,all games,solver_errors,0,,,,
+versus_solver,8x7,perfect,agent value win,kept_value_rate,0.894,198,0.843,0.930,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,perfect,agent value draw,kept_value_rate,0.750,4,0.301,0.954,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,perfect,agent value win+draw,kept_value_rate,0.891,202,0.841,0.927,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,perfect,agent value loss (check),kept_value_rate,1.000,198,0.981,1.000,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,perfect,all games,solver_expired,0,,,,
+versus_solver,8x7,perfect,all games,solver_errors,0,,,,
+versus_solver,8x7,mcts,agent value win,kept_value_rate,0.965,198,0.929,0.983,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,mcts,agent value draw,kept_value_rate,0.750,4,0.301,0.954,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,mcts,agent value win+draw,kept_value_rate,0.960,202,0.924,0.980,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,mcts,agent value loss (check),kept_value_rate,1.000,198,0.981,1.000,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,mcts,all games,solver_expired,0,,,,
+versus_solver,8x7,mcts,all games,solver_errors,0,,,,
+versus_solver,8x7,network,agent value win,kept_value_rate,0.803,198,0.742,0.852,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,network,agent value draw,kept_value_rate,0.000,4,0.000,0.490,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,network,agent value win+draw,kept_value_rate,0.787,202,0.726,0.838,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,network,agent value loss (check),kept_value_rate,1.000,198,0.981,1.000,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,network,all games,solver_expired,0,,,,
+versus_solver,8x7,network,all games,solver_errors,0,,,,
+versus_solver,8x7,network-mcts,agent value win,kept_value_rate,0.960,198,0.922,0.979,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,network-mcts,agent value draw,kept_value_rate,0.250,4,0.046,0.699,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,network-mcts,agent value win+draw,kept_value_rate,0.946,202,0.905,0.969,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,network-mcts,agent value loss (check),kept_value_rate,1.000,198,0.981,1.000,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,network-mcts,all games,solver_expired,0,,,,
+versus_solver,8x7,network-mcts,all games,solver_errors,0,,,,
+versus_solver,8x7,allis,agent value win,kept_value_rate,0.778,198,0.715,0.830,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,allis,agent value draw,kept_value_rate,0.000,4,0.000,0.490,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,allis,agent value win+draw,kept_value_rate,0.762,202,0.699,0.816,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,allis,agent value loss (check),kept_value_rate,1.000,198,0.981,1.000,"200 start positions (16-20 stones), both sides; agent 1 s, solver 600 s"
+versus_solver,8x7,allis,all games,solver_expired,0,,,,
+versus_solver,8x7,allis,all games,solver_errors,0,,,,
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 1,move_accuracy,0.908,1000,0.888,0.924,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 1,mean_nodes_per_move,6.9,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 1,move_accuracy,0.912,1000,0.893,0.928,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 1,mean_nodes_per_move,6.9,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 2,move_accuracy,0.938,1000,0.921,0.951,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 2,mean_nodes_per_move,30,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 2,move_accuracy,0.939,1000,0.922,0.952,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 2,mean_nodes_per_move,31,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 4,move_accuracy,0.956,1000,0.941,0.967,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 4,mean_nodes_per_move,259,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 4,move_accuracy,0.959,1000,0.945,0.97,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 4,mean_nodes_per_move,271,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 6,move_accuracy,0.963,1000,0.949,0.973,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 6,mean_nodes_per_move,1772,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 6,move_accuracy,0.968,1000,0.955,0.977,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 6,mean_nodes_per_move,1933,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 8,move_accuracy,0.975,1000,0.963,0.983,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 8,mean_nodes_per_move,10896,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 8,move_accuracy,0.976,1000,0.965,0.984,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 8,mean_nodes_per_move,12407,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 10,move_accuracy,0.974,1000,0.962,0.982,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 10,mean_nodes_per_move,64674,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 10,move_accuracy,0.976,1000,0.965,0.984,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 10,mean_nodes_per_move,74339,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 12,move_accuracy,0.978,1000,0.967,0.985,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-handcrafted,depth 12,mean_nodes_per_move,379324,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 12,move_accuracy,0.978,1000,0.967,0.985,"train_8x7 held-out first 1,000"
+alphabeta_depth,8x7,alpha-beta-learned,depth 12,mean_nodes_per_move,453649,1000,,,"train_8x7 held-out first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 1,move_accuracy,0.931,1000,0.914,0.945,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 1,mean_nodes_per_move,7.3,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 1,move_accuracy,0.942,1000,0.926,0.955,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 1,mean_nodes_per_move,7.3,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 2,move_accuracy,0.96,1000,0.946,0.97,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 2,mean_nodes_per_move,33,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 2,move_accuracy,0.969,1000,0.956,0.978,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 2,mean_nodes_per_move,33,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 4,move_accuracy,0.975,1000,0.963,0.983,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 4,mean_nodes_per_move,255,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 4,move_accuracy,0.976,1000,0.965,0.984,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 4,mean_nodes_per_move,264,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 6,move_accuracy,0.978,1000,0.967,0.985,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 6,mean_nodes_per_move,1720,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 6,move_accuracy,0.982,1000,0.972,0.989,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 6,mean_nodes_per_move,1843,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 8,move_accuracy,0.988,1000,0.979,0.993,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 8,mean_nodes_per_move,11529,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 8,move_accuracy,0.987,1000,0.978,0.992,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 8,mean_nodes_per_move,12978,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 10,move_accuracy,0.988,1000,0.979,0.993,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 10,mean_nodes_per_move,81746,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 10,move_accuracy,0.988,1000,0.979,0.993,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 10,mean_nodes_per_move,93438,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 12,move_accuracy,0.988,1000,0.979,0.993,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-handcrafted,depth 12,mean_nodes_per_move,570672,1000,,,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 12,move_accuracy,0.99,1000,0.982,0.995,"late_9x8 first 1,000"
+alphabeta_depth,9x8,alpha-beta-learned,depth 12,mean_nodes_per_move,680430,1000,,,"late_9x8 first 1,000"
+handcrafted_vs_learned_duel,9x8,alpha-beta-handcrafted,both depth 2,score,0.53,200,0.463,0.597,handcrafted W100 D12 L88 vs learned; 100 openings x 2 colours
+handcrafted_vs_learned_duel,9x8,alpha-beta-handcrafted,both depth 4,score,0.455,200,0.387,0.523,handcrafted W87 D8 L105 vs learned; 100 openings x 2 colours
+handcrafted_vs_learned_duel,9x8,alpha-beta-handcrafted,both depth 6,score,0.487,200,0.419,0.556,handcrafted W95 D5 L100 vs learned; 100 openings x 2 colours
+handcrafted_vs_learned_duel,9x8,alpha-beta-handcrafted,both depth 8,score,0.443,200,0.375,0.51,handcrafted W85 D7 L108 vs learned; 100 openings x 2 colours
+depth_vs_depth,9x8,alpha-beta-handcrafted,depth 4 vs depth 2,deeper_score,0.66,200,0.595,0.725,deeper W130 D4 L66
+depth_vs_depth,9x8,alpha-beta-handcrafted,depth 6 vs depth 4,deeper_score,0.73,200,0.67,0.79,deeper W141 D10 L49
+depth_vs_depth,9x8,alpha-beta-handcrafted,depth 8 vs depth 6,deeper_score,0.665,200,0.601,0.729,deeper W128 D10 L62
+depth_vs_depth,9x8,alpha-beta-handcrafted,depth 10 vs depth 8,deeper_score,0.652,200,0.589,0.716,deeper W125 D11 L64
+allis_ablation,9x8,allis,full rules vs safe-random,score,0.782,400,0.742,0.822,
+allis_ablation,9x8,allis,without claimeven follow-up vs safe-random,score,0.835,400,0.799,0.871,
+allis_ablation,9x8,allis,follow-up parity inverted vs safe-random,score,0.752,400,0.71,0.794,
+allis_ablation,8x7,allis,full rules vs safe-random,score,0.83,400,0.793,0.867,
+allis_ablation,8x7,allis,without claimeven follow-up vs safe-random,score,0.863,400,0.829,0.897,
+allis_ablation,8x7,allis,follow-up parity inverted vs safe-random,score,0.805,400,0.766,0.844,
+allis_ablation,9x8,allis,full rules vs without claimeven,score,0.534,400,0.486,0.582,
+allis_ablation,8x7,allis,full rules vs without claimeven,score,0.501,400,0.453,0.549,
+mcts_budget,8x7,mcts,10 ms/move,move_accuracy,0.97,300,0.944,0.984,held-out; before the proven-result rule
+mcts_budget,8x7,mcts,100 ms/move,move_accuracy,0.97,300,0.944,0.984,held-out; before the proven-result rule
+mcts_budget,8x7,mcts,1000 ms/move,move_accuracy,0.99,300,0.971,0.997,held-out; before the proven-result rule
+mcts_budget,8x7,mcts,100 ms/move,move_accuracy,0.982,600,0.967,0.99,after the proven-result rule
+mcts_budget,8x7,mcts,1000 ms/move,move_accuracy,0.992,600,0.981,0.996,after the proven-result rule
+mcts_budget,8x7,network-mcts,100 ms/move,move_accuracy,0.968,600,0.951,0.98,after the proven-result rule
+mcts_budget,8x7,network-mcts,1000 ms/move,move_accuracy,0.972,600,0.955,0.982,after the proven-result rule
+mcts_budget,8x7,network,100 ms/move,move_accuracy,0.912,600,0.886,0.932,after the proven-result rule
+mcts_budget,9x8,mcts,100 ms/move,move_accuracy,0.993,300,0.976,0.998,after the proven-result rule
+mcts_budget,9x8,mcts,1000 ms/move,move_accuracy,0.997,300,0.981,0.999,after the proven-result rule
+mcts_budget,9x8,network-mcts,100 ms/move,move_accuracy,0.983,300,0.962,0.993,after the proven-result rule
+mcts_budget,9x8,network-mcts,1000 ms/move,move_accuracy,0.987,300,0.966,0.995,after the proven-result rule
+mcts_budget,9x8,network,100 ms/move,move_accuracy,0.91,300,0.872,0.937,after the proven-result rule
+mcts_speed,7x6,mcts,"empty board, 200k simulations, median of 3",simulations_per_second,990000,,,,
+mcts_speed,8x7,mcts,"empty board, 200k simulations, median of 3",simulations_per_second,933000,,,,
+mcts_speed,9x8,mcts,"empty board, 200k simulations, median of 3",simulations_per_second,737000,,,,
+network_sweep,8x7,network,"width x depth 32x2, lr 0.001",best_validation_loss,0.6241,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x2, lr 0.001",column_accuracy,0.7206,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x2, lr 0.001",move_accuracy,0.8058,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x2, lr 0.003",best_validation_loss,0.6096,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x2, lr 0.003",column_accuracy,0.726,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x2, lr 0.003",move_accuracy,0.8177,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x4, lr 0.001",best_validation_loss,0.502,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x4, lr 0.001",column_accuracy,0.7796,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x4, lr 0.001",move_accuracy,0.8461,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x4, lr 0.003",best_validation_loss,0.4777,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x4, lr 0.003",column_accuracy,0.7901,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x4, lr 0.003",move_accuracy,0.8617,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x6, lr 0.001",best_validation_loss,0.4209,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x6, lr 0.001",column_accuracy,0.8201,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x6, lr 0.001",move_accuracy,0.901,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x6, lr 0.003",best_validation_loss,0.4038,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x6, lr 0.003",column_accuracy,0.8301,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 32x6, lr 0.003",move_accuracy,0.9057,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x2, lr 0.001",best_validation_loss,0.6076,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x2, lr 0.001",column_accuracy,0.7295,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x2, lr 0.001",move_accuracy,0.8233,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x2, lr 0.003",best_validation_loss,0.5899,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x2, lr 0.003",column_accuracy,0.7334,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x2, lr 0.003",move_accuracy,0.8268,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x4, lr 0.001",best_validation_loss,0.4663,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x4, lr 0.001",column_accuracy,0.7996,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x4, lr 0.001",move_accuracy,0.8729,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x4, lr 0.003",best_validation_loss,0.4593,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x4, lr 0.003",column_accuracy,0.7982,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x4, lr 0.003",move_accuracy,0.8843,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x6, lr 0.001",best_validation_loss,0.3887,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_sweep,8x7,network,"width x depth 64x6, lr 0.003",best_validation_loss,0.3898,,,,"validation 9,000 lines of the train part; GPU; init not fully seeded"
+network_training,8x7,network,"shipped 64x6, lr 0.001, batch 256, 12 epochs, CPU",train_loss_first_epoch,0.6525,96209,,,
+network_training,8x7,network,"shipped 64x6, lr 0.001, batch 256, 12 epochs, CPU",train_loss_last_epoch,0.3285,96209,,,
+network_training,8x7,network,"shipped 64x6, lr 0.001, batch 256, 12 epochs, CPU",training_seconds,2224.6,,,,
+logistic_fit,8x7,alpha-beta-learned,constant,held_out_log_loss,0.679029,10689,,,
+logistic_fit,8x7,alpha-beta-learned,constant,held_out_accuracy,0.5663,10689,,,
+logistic_fit,8x7,alpha-beta-learned,handcrafted (calibrated),held_out_log_loss,0.58233,10689,,,
+logistic_fit,8x7,alpha-beta-learned,handcrafted (calibrated),held_out_accuracy,0.6777,10689,,,
+logistic_fit,8x7,alpha-beta-learned,learned,held_out_log_loss,0.558529,10689,,,
+logistic_fit,8x7,alpha-beta-learned,learned,held_out_accuracy,0.7014,10689,,,
+logistic_fit,8x7,alpha-beta-learned,shipped integer weights,weights,1010 662 -1152 -895,,,,"mover good, mover other, opponent good, opponent other row threats"
+solve_time,8x7,perfect,14 stones (14-15 stone band),median_seconds,9.474,3450,,,"max 2327.2 s; one core per position, c6a.48xlarge"
+solve_time,8x7,perfect,15 stones (14-15 stone band),median_seconds,3.789,3448,,,"max 1098.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,24 stones (late 24-60 stones),median_seconds,11.703,265,,,"max 1856.9 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,25 stones (late 24-60 stones),median_seconds,6.29,268,,,"max 2632.7 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,26 stones (late 24-60 stones),median_seconds,2.209,271,,,"max 1243.5 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,27 stones (late 24-60 stones),median_seconds,1.622,270,,,"max 1010.5 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,28 stones (late 24-60 stones),median_seconds,0.885,271,,,"max 1077.9 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,29 stones (late 24-60 stones),median_seconds,0.498,271,,,"max 441.8 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,30 stones (late 24-60 stones),median_seconds,0.316,271,,,"max 118.6 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,31 stones (late 24-60 stones),median_seconds,0.235,271,,,"max 525.6 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,32 stones (late 24-60 stones),median_seconds,0.23,271,,,"max 144.8 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,33 stones (late 24-60 stones),median_seconds,0.169,271,,,"max 138.4 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,34 stones (late 24-60 stones),median_seconds,0.173,270,,,"max 91.3 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,35 stones (late 24-60 stones),median_seconds,0.147,270,,,"max 88.6 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,36 stones (late 24-60 stones),median_seconds,0.125,270,,,"max 42.1 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,37 stones (late 24-60 stones),median_seconds,0.111,270,,,"max 5.5 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,38 stones (late 24-60 stones),median_seconds,0.107,270,,,"max 9.9 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,39 stones (late 24-60 stones),median_seconds,0.105,270,,,"max 1.8 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,40 stones (late 24-60 stones),median_seconds,0.099,270,,,"max 3.6 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,41 stones (late 24-60 stones),median_seconds,0.099,270,,,"max 1.8 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,42 stones (late 24-60 stones),median_seconds,0.097,270,,,"max 0.6 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,43 stones (late 24-60 stones),median_seconds,0.096,270,,,"max 1.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,44 stones (late 24-60 stones),median_seconds,0.095,270,,,"max 0.8 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,45 stones (late 24-60 stones),median_seconds,0.095,270,,,"max 0.6 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,46 stones (late 24-60 stones),median_seconds,0.094,270,,,"max 0.3 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,47 stones (late 24-60 stones),median_seconds,0.094,270,,,"max 0.3 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,48 stones (late 24-60 stones),median_seconds,0.094,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,49 stones (late 24-60 stones),median_seconds,0.094,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,50 stones (late 24-60 stones),median_seconds,0.093,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,51 stones (late 24-60 stones),median_seconds,0.093,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,52 stones (late 24-60 stones),median_seconds,0.093,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,53 stones (late 24-60 stones),median_seconds,0.094,270,,,"max 0.3 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,54 stones (late 24-60 stones),median_seconds,0.093,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,55 stones (late 24-60 stones),median_seconds,0.093,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,56 stones (late 24-60 stones),median_seconds,0.093,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,57 stones (late 24-60 stones),median_seconds,0.093,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,58 stones (late 24-60 stones),median_seconds,0.094,270,,,"max 0.3 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,59 stones (late 24-60 stones),median_seconds,0.093,270,,,"max 0.2 s; one core per position, c6a.48xlarge"
+solve_time,9x8,perfect,60 stones (late 24-60 stones),median_seconds,0.093,270,,,"max 0.3 s; one core per position, c6a.48xlarge"
+solve_time_probe,9x8,perfect,50 stones,median_seconds,0.142,6,,,"laptop, 600 s cap; max 0.153"
+solve_time_probe,9x8,perfect,44 stones,median_seconds,0.122,6,,,"laptop, 600 s cap; max 0.129"
+solve_time_probe,9x8,perfect,40 stones,median_seconds,0.139,6,,,"laptop, 600 s cap; max 0.158"
+solve_time_probe,9x8,perfect,36 stones,median_seconds,0.127,6,,,"laptop, 600 s cap; max 11.98"
+solve_time_probe,9x8,perfect,32 stones,median_seconds,0.195,6,,,"laptop, 600 s cap; max 300.6"
+solve_time_probe,9x8,perfect,28 stones,median_seconds,0.227,6,,,"laptop, 600 s cap; max 3.69"
+solve_time_probe,9x8,perfect,24 stones,median_seconds,16,6,,,"laptop, 600 s cap; max >600; 1 of 6 over 600 s"
+solve_time_probe,9x8,perfect,20 stones,median_seconds,79.6,6,,,"laptop, 600 s cap; max >600; 2 of 6 over 600 s"
+solve_time_probe,9x8,perfect,16 stones,median_seconds,>600,6,,,"laptop, 600 s cap; max >600; all 6 over 600 s"
+solve_time_probe,8x7,perfect,6 stones,seconds,>1800,2,,,"2 of 2 hit the 1800 s cap; laptop, one core"
+solve_time_probe,8x7,perfect,8 stones,seconds,620,2,,,"1 solved in 620 s, 1 over 1800 s; laptop, one core"
+dataset,8x7,,train_8x7,positions,106898,,,,stones 14-44; side to move W60555 D3888 L42455
+dataset,8x7,,openings_8x7,positions,2000,,,,stones 10-12; side to move W1236 D81 L683
+dataset,9x8,,late_9x8,positions,9990,,,,stones 24-60; side to move W5702 D148 L4140
+dataset,8x7,,train_8x7,held_out_positions,10689,,,,"every 10th line; 96,209 train"
+dataset,8x7,,openings_8x7,solver_timeouts_skipped,17,,,,"3,600 s cap; first 2,000 solved of 2,017 kept"
+dataset,9x8,,late_9x8,solver_timeouts_dropped,10,,,,"3,600 s cap; 24-27 stones"
+verification,7x6,perfect,"Pons test sets (6 x 1,000)",mismatches,0,6000,,,
+verification,7x6,perfect,UCI connect-4 (8-ply positions),mismatches,0,67557,,,class split W44473 D6449 L16635 matches published counts
+verification,8x7,perfect,laptop vs cloud opening labels,mismatches,0,306,,,
