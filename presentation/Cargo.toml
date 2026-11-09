@@ -1,0 +1,18 @@
+[package]
+name = "c4-presentation"
+version = "0.1.0"
+edition = "2024"
+
+# Standalone: not part of the c4 crate, keeps its own lockfile and target dir.
+[workspace]
+
+[dependencies]
+bevy = "0.20.1"
+c4 = { path = ".." }
+
+[profile.dev]
+opt-level = 1
+
+# Bevy and the c4 agents are slow without optimisation, even in dev builds.
+[profile.dev.package."*"]
+opt-level = 3
