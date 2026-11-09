@@ -1,5 +1,15 @@
 # Connect Four Arena 3D — Presentation App Spec
 
+# TODO
+
+- [ ] Model the colors and style off of C:/Coding/Watch-Ember
+- [ ] Make a presentation mode, where if I press play in the top right or something, it begins the presentation
+  - this presentation should kind of explain everything that we did and how like certain things were solved and why they were solved by
+  - Make everything in the presentation 3d down to the text
+- [ ] Make a multiple board mode where I can press plus and expand the number of board
+- [ ] Make a lot of cool animations. Like a winning animation or effect stuff like that
+- [ ] Make a 'board expanding' animation where we literally see the size of the board increase like it widens, the increases in height, make it a really cool animation
+
 A Bevy app for the class presentation. It shows the project in 3D: pick two of
 our eight agents, grow or shrink the board, and watch the agents play.
 
@@ -46,7 +56,14 @@ up to 64 bits use `u64`, and 9×8 uses `u128`, matching `B76`/`B87`/`B98`.
 `Box<dyn Agent<G>>` is not `Send`, so the agents are **built inside** the worker
 thread and never leave it.
 
-- UI → worker: `Think` (choose the next move now) or the channel is dropped (stop).
+- UI → worker: `Think { per_move, count }` (play up to `count` moves, each with
+  `per_move` to think) or the channel is dropped (stop). The time travels with each
+  request, so it can change mid-match.
+- `per_move` is the agent's deadline and also the **minimum** time a move takes: a
+  fast agent waits out the rest, a slow one overruns and the overrun is not carried
+  over. At 1 ms every agent effectively plays as fast as it can.
+- Below 10 ms per move the UI asks for about a frame's worth of moves at once (up to
+  16), so fast games are not limited to one move per frame.
 - Worker → UI: `Opened { moves }`, `Moved { col, millis, verdict }`, `Failed(msg)`.
 - The UI asks for a move only after the previous disc has landed and the match is
   not paused. So Pause and Step work, and the animation never falls behind the game.
@@ -56,12 +73,12 @@ thread and never leave it.
 
 ### Match settings
 
-| Setting | Values | Default |
-|---|---|---|
-| Red agent / Yellow agent | the 8 roster agents | mcts vs alpha-beta-learned |
-| Board size | the ladder above | 9×8 (test board) |
-| Time per move | 0.1, 0.25, 0.5, 1, 2, 5 s | 1 s (as in the main tournament) |
-| Opening | empty, random 4 stones, random 8 stones | empty |
+| Setting                  | Values                                        | Default                         |
+| ------------------------ | --------------------------------------------- | ------------------------------- |
+| Red agent / Yellow agent | the 8 roster agents                           | mcts vs alpha-beta-learned      |
+| Board size               | the ladder above                              | 9×8 (test board)                |
+| Time per move            | 1 ms, 10 ms, 50 ms, 0.1, 0.25, 0.5, 1, 2, 5 s | 1 s (as in the main tournament) |
+| Opening                  | empty, random 4 stones, random 8 stones       | empty                           |
 
 Random openings use `c4::dataset::sample` (random, no immediate wins), like the
 tournament's openings. Agent seeds come from the clock, so a match is different each time.
@@ -71,7 +88,8 @@ tournament's openings. Agent seeds come from the clock, so a match is different 
 - **Board:** a custom mesh, a blue plate with a round hole in every cell (front face,
   back face, hole walls, outer rim), plus two feet. Built again on every resize.
 - **Discs:** cylinders turned to face the camera. Red = first player, yellow = second.
-  Animated fall (gravity, one damped bounce).
+  Animated fall (gravity, one damped bounce), sped up to 4x at short move times;
+  below 0.1 s per move discs appear in place with no drop.
 - **"Thinking" disc:** the next player's disc hovers and bobs above the board, with a
   progress bar for the time per move.
 - **Win:** the 4+ discs in the winning line glow and pulse. A banner names the winner.
@@ -97,34 +115,44 @@ tournament's openings. Agent seeds come from the clock, so a match is different 
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-Agent choice, size, time and opening can change only between matches (the controls
-are greyed out while a match runs). Reset clears the board.
+### Series and score
+
+- **Play** starts a series: when a match ends the winner's score goes up (or draws),
+  the result shows briefly (6x the move time, 0.05 s to 1.5 s), and the next match
+  starts by itself. Space on the result screen stops the series there.
+- The score (Red wins : Yellow wins, draws, games) sits under the title.
+- Every control works mid-match:
+  - Picking a different agent **resets the score** and restarts the match.
+  - Changing the board size restarts the match on the new board (score kept).
+  - Time per move applies from the next move.
+  - Opening applies from the next match.
+- Reset stops play, clears the board and the score.
 
 ### Keyboard shortcuts (for presenting)
 
-| Key | Action |
-|---|---|
-| Space | Play / Pause |
-| S | Step one move |
-| R | Reset |
-| `+` / `-` | Grow / shrink the board |
-| `[` / `]` | Less / more time per move |
-| Right-drag, wheel | Orbit, zoom |
+| Key               | Action                    |
+| ----------------- | ------------------------- |
+| Space             | Play / Pause              |
+| S                 | Step one move             |
+| R                 | Reset                     |
+| `+` / `-`         | Grow / shrink the board   |
+| `[` / `]`         | Less / more time per move |
+| Right-drag, wheel | Orbit, zoom               |
 
 ## Results shown on agent cards
 
 From `results/accuracy.csv` and `results/measurements.csv` (1 s per move):
 
-| Agent | 9×8 Elo | 8×7 held-out acc. | 9×8 late acc. |
-|---|---|---|---|
-| mcts | 740 | 98.7% | 99.1% |
-| alpha-beta-learned | 722 | 98.9% | 99.3% |
-| alpha-beta-handcrafted | 690 | 98.8% | 99.3% |
-| network-mcts | 647 | 98.2% | 98.5% |
-| allis | 160 | 88.3% | 89.7% |
-| perfect | 78 | 97.8% | 97.8% |
-| network | 37 | 92.4% | 91.0% |
-| safe-random | 0 (anchor) | 76.4% | 77.8% |
+| Agent                  | 9×8 Elo    | 8×7 held-out acc. | 9×8 late acc. |
+| ---------------------- | ---------- | ----------------- | ------------- |
+| mcts                   | 740        | 98.7%             | 99.1%         |
+| alpha-beta-learned     | 722        | 98.9%             | 99.3%         |
+| alpha-beta-handcrafted | 690        | 98.8%             | 99.3%         |
+| network-mcts           | 647        | 98.2%             | 98.5%         |
+| allis                  | 160        | 88.3%             | 89.7%         |
+| perfect                | 78         | 97.8%             | 97.8%         |
+| network                | 37         | 92.4%             | 91.0%         |
+| safe-random            | 0 (anchor) | 76.4%             | 77.8%         |
 
 ## Build and run
 

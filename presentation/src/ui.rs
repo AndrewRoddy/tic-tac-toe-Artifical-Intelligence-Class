@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy::ui::{InteractionDisabled, Pressed};
 use bevy::ui_widgets::{Activate, Button};
 
-use crate::game::{Action, Game, OPENINGS, Outcome, Pending, Phase, Player, Settings};
+use crate::game::{Action, GameFlow, Game, OPENINGS, Outcome, Pending, Phase, Player, Series, Settings};
 use crate::roster::ROSTER;
 use crate::scene::{RED, YELLOW};
 use crate::sizes::LADDER;
@@ -27,7 +27,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, build_ui)
             .add_observer(on_activate)
-            .add_systems(Update, (lock_settings, style_buttons, update_labels, update_cards, update_status));
+            .add_systems(Update, (style_buttons, update_labels, update_cards, update_status, update_score).after(GameFlow));
     }
 }
 
@@ -41,6 +41,10 @@ struct StatusText;
 struct MovesText;
 #[derive(Component)]
 struct Banner;
+#[derive(Component)]
+struct ScoreText(Player);
+#[derive(Component)]
+struct ScoreNote;
 #[derive(Component)]
 struct ThinkFill;
 #[derive(Component)]
@@ -122,6 +126,18 @@ fn build_ui(mut commands: Commands) {
             })
             .with_children(|top| {
                 top.spawn(label("Connect Four AI: Train on 8x7, Test on 9x8", 26.0, TEXT));
+                top.spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: px(14),
+                    ..default()
+                })
+                .with_children(|score| {
+                    score.spawn((label("0", 34.0, RED), ScoreText(Player::Red)));
+                    score.spawn(label(":", 30.0, MUTED));
+                    score.spawn((label("0", 34.0, YELLOW), ScoreText(Player::Yellow)));
+                    score.spawn((label("", 16.0, MUTED), ScoreNote));
+                });
                 top.spawn((label("", 22.0, ACCENT), Banner));
             });
 
@@ -267,17 +283,6 @@ fn on_activate(event: On<Activate>, actions: Query<&Action>, mut pending: ResMut
     }
 }
 
-fn lock_settings(mut commands: Commands, game: Res<Game>, buttons: Query<(Entity, &Action, Has<InteractionDisabled>)>) {
-    for (entity, action, disabled) in &buttons {
-        let locked = action.is_setting() && game.in_progress();
-        if locked && !disabled {
-            commands.entity(entity).insert(InteractionDisabled);
-        } else if !locked && disabled {
-            commands.entity(entity).remove::<InteractionDisabled>();
-        }
-    }
-}
-
 fn style_buttons(
     settings: Res<Settings>,
     mut buttons: Query<(&Action, &Hovered, Has<Pressed>, Has<InteractionDisabled>, &mut BackgroundColor, &mut BorderColor)>,
@@ -308,8 +313,33 @@ fn set(text: &mut Text, value: String) {
     }
 }
 
+fn time_label(seconds: f32) -> String {
+    if seconds <= 0.001 {
+        "1 ms / move".to_owned()
+    } else if seconds < 0.1 {
+        format!("{:.0} ms / move", seconds * 1000.0)
+    } else {
+        format!("{seconds:.2} s / move")
+    }
+}
+
+fn update_score(
+    series: Res<Series>,
+    mut texts: ParamSet<(Query<(&ScoreText, &mut Text)>, Query<&mut Text, With<ScoreNote>>)>,
+) {
+    for (score, mut text) in &mut texts.p0() {
+        set(&mut text, series.wins[score.0.seat()].to_string());
+    }
+    let games = series.games();
+    let note = format!("   draws {}   -   games {}", series.draws, games);
+    for mut text in &mut texts.p1() {
+        set(&mut text, note.clone());
+    }
+}
+
 fn update_labels(
     settings: Res<Settings>,
+    series: Res<Series>,
     game: Res<Game>,
     mut texts: ParamSet<(
         Query<&mut Text, With<SizeLabel>>,
@@ -323,10 +353,11 @@ fn update_labels(
         set(&mut text, format!("{} x {}  {}", size.columns, size.rows, size.label));
     }
     for mut text in &mut texts.p1() {
-        set(&mut text, format!("{:.2} s / move", settings.per_move()));
+        set(&mut text, time_label(settings.per_move()));
     }
     let play = match game.phase {
         Phase::Idle => "Play",
+        Phase::Finished | Phase::Starting if series.playing => "Pause",
         Phase::Finished => "New match",
         Phase::Running => "Pause",
         Phase::Paused | Phase::Starting => "Resume",
@@ -396,6 +427,7 @@ id: {}", info(card.0).family, info(card.0).entrant.name()));
 fn update_status(
     time: Res<Time>,
     settings: Res<Settings>,
+    series: Res<Series>,
     game: Res<Game>,
     mut texts: ParamSet<(Query<&mut Text, With<StatusText>>, Query<&mut Text, With<MovesText>>, Query<&mut Text, With<Banner>>)>,
     mut fill: Query<(&mut Node, &mut BackgroundColor), With<ThinkFill>>,
@@ -411,6 +443,7 @@ fn update_status(
         match game.phase {
             Phase::Idle => "Pick two agents and a board size, then press Play (Space).".to_owned(),
             Phase::Starting => "Building agents...".to_owned(),
+            Phase::Running if !settings.animated() => "Racing: one match after another as fast as they can think.".to_owned(),
             Phase::Running | Phase::Paused if game.waiting => format!(
                 "{} ({}) is thinking...  {:.1} / {:.2} s{last}",
                 game.to_move.name(),
@@ -420,11 +453,15 @@ fn update_status(
             ),
             Phase::Running => format!("{} to move{last}", game.to_move.name()),
             Phase::Paused => format!("Paused: Space to resume, S to step{last}"),
-            Phase::Finished => match game.outcome {
-                Some(Outcome::Winner(player)) => format!("{} ({}) wins!{last}", player.name(), agent(player)),
-                Some(Outcome::Draw) => "Draw: the board is full.".to_owned(),
-                None => String::new(),
-            },
+            Phase::Finished => {
+                let result = match game.outcome {
+                    Some(Outcome::Winner(player)) => format!("{} ({}) wins!", player.name(), agent(player)),
+                    Some(Outcome::Draw) => "Draw: the board is full.".to_owned(),
+                    None => String::new(),
+                };
+                let next = if series.playing { "   Next match coming up..." } else { "   Space for a new match." };
+                format!("{result}{next}")
+            }
         }
     };
     for mut text in &mut texts.p0() {

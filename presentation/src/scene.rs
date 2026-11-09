@@ -9,7 +9,7 @@ use bevy::mesh::Indices;
 use bevy::prelude::*;
 use bevy::render::render_resource::PrimitiveTopology;
 
-use crate::game::{Game, Phase, Player};
+use crate::game::{Game, GameFlow, Phase, Player, Settings};
 use crate::sizes::BoardSize;
 
 const HOLE_RADIUS: f32 = 0.41;
@@ -26,7 +26,7 @@ const SETTLE_SPEED: f32 = 1.2;
 const POP_SECONDS: f32 = 0.45;
 /// Pixels the UI covers on each side, used to frame the board in the free area.
 const UI_SIDE_PX: f32 = 300.0;
-const UI_TOP_PX: f32 = 70.0;
+const UI_TOP_PX: f32 = 115.0;
 const UI_BOTTOM_PX: f32 = 175.0;
 
 pub const RED: Color = Color::srgb(0.86, 0.13, 0.15);
@@ -54,7 +54,8 @@ impl Plugin for ScenePlugin {
                     hover_ghost,
                     glow,
                     orbit_camera,
-                ),
+                )
+                    .after(GameFlow),
             );
     }
 }
@@ -92,6 +93,8 @@ pub struct Disc {
 #[derive(Component)]
 pub struct Falling {
     delay: f32,
+    /// Animation speed multiplier, so short move times still show the drop.
+    speed: f32,
     velocity: f32,
     rest: f32,
 }
@@ -382,20 +385,33 @@ fn pop_board(mut commands: Commands, time: Res<Time>, mut boards: Query<(Entity,
     }
 }
 
-pub fn spawn_disc(commands: &mut Commands, assets: &SceneAssets, size: BoardSize, player: Player, col: u32, row: u32, delay: f32) {
-    commands.spawn((
+/// Spawns a disc. With `speed` it drops in (after `delay`) at that animation speed;
+/// with `None` it appears in its cell straight away (used for very fast games).
+pub fn spawn_disc(commands: &mut Commands, assets: &SceneAssets, size: BoardSize, player: Player, cell: (u32, u32), delay: f32, speed: Option<f32>) {
+    let (col, row) = cell;
+    let rotation = Quat::from_rotation_x(FRAC_PI_2);
+    let mut disc = commands.spawn((
         Disc { col, row, player },
-        Falling {
-            delay,
-            velocity: 0.0,
-            rest: cell_y(row),
-        },
         Mesh3d(assets.disc.clone()),
         MeshMaterial3d(assets.solid[index(player)].clone()),
-        Transform::from_xyz(cell_x(size, col), board_top(size) + 1.0, 0.0)
-            .with_rotation(Quat::from_rotation_x(FRAC_PI_2)),
-        if delay > 0.0 { Visibility::Hidden } else { Visibility::Inherited },
     ));
+    match speed {
+        Some(speed) => {
+            disc.insert((
+                Falling {
+                    delay,
+                    speed,
+                    velocity: 0.0,
+                    rest: cell_y(row),
+                },
+                Transform::from_xyz(cell_x(size, col), board_top(size) + 1.0, 0.0).with_rotation(rotation),
+                if delay > 0.0 { Visibility::Hidden } else { Visibility::Inherited },
+            ));
+        }
+        None => {
+            disc.insert((Transform::from_xyz(cell_x(size, col), cell_y(row), 0.0).with_rotation(rotation), Visibility::Inherited));
+        }
+    }
 }
 
 pub fn light_up(assets: &SceneAssets, disc: &Disc, material: &mut MeshMaterial3d<StandardMaterial>) {
@@ -409,6 +425,7 @@ fn fall(mut commands: Commands, time: Res<Time>, mut discs: Query<(Entity, &mut 
             falling.delay -= dt;
             continue;
         }
+        let dt = dt * falling.speed;
         *visibility = Visibility::Inherited;
         falling.velocity -= GRAVITY * dt;
         transform.translation.y += falling.velocity * dt;
@@ -423,9 +440,9 @@ fn fall(mut commands: Commands, time: Res<Time>, mut discs: Query<(Entity, &mut 
     }
 }
 
-fn hover_ghost(game: Res<Game>, time: Res<Time>, mut ghosts: Query<(&Ghost, &mut Transform, &mut Visibility)>) {
+fn hover_ghost(game: Res<Game>, settings: Res<Settings>, time: Res<Time>, mut ghosts: Query<(&Ghost, &mut Transform, &mut Visibility)>) {
     let t = time.elapsed_secs();
-    let thinking = game.waiting && matches!(game.phase, Phase::Running | Phase::Paused);
+    let thinking = game.waiting && settings.animated() && matches!(game.phase, Phase::Running | Phase::Paused);
     let span = (to_f32(game.size.columns) - 1.0) / 2.0;
     for (ghost, mut transform, mut visibility) in &mut ghosts {
         let shown = thinking && ghost.0 == game.to_move;

@@ -4,13 +4,19 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bevy::prelude::*;
 
-use crate::engine::{Config, Engine, Reply};
+use crate::engine::{Config, Engine, Reply, Think};
 use crate::roster::{DEFAULT_RED, DEFAULT_YELLOW, ROSTER};
 use crate::scene::{Disc, Falling, SceneAssets, light_up, spawn_disc};
 use crate::sizes::{BoardSize, DEFAULT_SIZE, LADDER};
 
-pub const TIMES: [f32; 6] = [0.1, 0.25, 0.5, 1.0, 2.0, 5.0];
-pub const DEFAULT_TIME: usize = 3;
+/// Time per move: the agent's thinking budget and the minimum time a move takes.
+pub const TIMES: [f32; 9] = [0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0];
+pub const DEFAULT_TIME: usize = 6;
+/// Below this time per move discs appear in place instead of dropping.
+const ANIMATE_FROM: f32 = 0.1;
+/// At very short move times the engine plays about a frame's worth of moves per request.
+const FRAME_SECONDS: f32 = 1.0 / 60.0;
+const MAX_BATCH: u16 = 16;
 pub const OPENINGS: [usize; 3] = [0, 4, 8];
 const OPENING_STAGGER: f32 = 0.12;
 
@@ -64,13 +70,6 @@ pub enum Action {
     Reset,
 }
 
-impl Action {
-    /// Settings that are locked while a match is in progress.
-    pub const fn is_setting(self) -> bool {
-        !matches!(self, Self::PlayPause | Self::Step | Self::Reset)
-    }
-}
-
 #[derive(Resource, Default)]
 pub struct Pending(pub Vec<Action>);
 
@@ -97,6 +96,47 @@ impl Settings {
     pub fn per_move(&self) -> f32 {
         TIMES[self.time]
     }
+
+    /// Whether discs drop in, or just appear (very fast games).
+    pub fn animated(&self) -> bool {
+        self.per_move() >= ANIMATE_FROM
+    }
+
+    /// Drop animation speed: normal for slow games, up to 4x faster near `ANIMATE_FROM`.
+    fn drop_speed(&self) -> Option<f32> {
+        self.animated().then(|| (0.6 / self.per_move()).clamp(1.0, 4.0))
+    }
+
+    /// Moves to ask the engine for at once.
+    fn batch(&self) -> u32 {
+        let per_move = self.per_move();
+        u32::from((1..MAX_BATCH).find(|&n| f32::from(n) * per_move >= FRAME_SECONDS).unwrap_or(MAX_BATCH))
+    }
+
+    /// How long a finished game stays on screen before the next one starts.
+    pub fn hold(&self) -> f32 {
+        (self.per_move() * 6.0).clamp(0.05, 1.5)
+    }
+}
+
+/// The running score between the two chosen agents, and whether matches keep
+/// coming (Play) or the arena is paused.
+#[derive(Resource, Default)]
+pub struct Series {
+    pub playing: bool,
+    pub wins: [u32; 2],
+    pub draws: u32,
+}
+
+impl Series {
+    fn clear_score(&mut self) {
+        self.wins = [0, 0];
+        self.draws = 0;
+    }
+
+    pub const fn games(&self) -> u32 {
+        self.wins[0] + self.wins[1] + self.draws
+    }
 }
 
 #[derive(Resource)]
@@ -108,7 +148,9 @@ pub struct Game {
     pub opening_len: usize,
     pub to_move: Player,
     pub waiting: bool,
+    owed: u32,
     pub think_started: f32,
+    pub finished_at: f32,
     step: bool,
     start_paused: bool,
     pub outcome: Option<Outcome>,
@@ -126,7 +168,9 @@ impl Game {
             opening_len: 0,
             to_move: Player::Red,
             waiting: false,
+            owed: 0,
             think_started: 0.0,
+            finished_at: 0.0,
             step: false,
             start_paused: false,
             outcome: None,
@@ -207,12 +251,17 @@ fn cell_index(size: BoardSize, col: u32, row: u32) -> usize {
 
 pub struct GamePlugin;
 
+/// The match logic; the scene and UI read the game after it each frame.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct GameFlow;
+
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Settings>()
             .init_resource::<Pending>()
+            .init_resource::<Series>()
             .insert_resource(Game::new(LADDER[DEFAULT_SIZE]))
-            .add_systems(Update, (keyboard, handle_actions, drive_engine).chain());
+            .add_systems(Update, (keyboard, handle_actions, drive_engine, next_match).chain().in_set(GameFlow));
     }
 }
 
@@ -246,46 +295,101 @@ fn handle_actions(
     mut commands: Commands,
     mut pending: ResMut<Pending>,
     mut settings: ResMut<Settings>,
+    mut series: ResMut<Series>,
     mut game: ResMut<Game>,
     discs: Query<Entity, With<Disc>>,
 ) {
     let actions: Vec<Action> = pending.0.drain(..).collect();
+    // A new pairing or board size throws away the current game.
+    let mut restart = false;
     for action in actions {
-        if action.is_setting() && game.in_progress() {
-            continue;
-        }
         match action {
-            Action::Pick(player, agent) => settings.agent[player.seat()] = agent,
-            Action::Grow => settings.size = (settings.size + 1).min(LADDER.len() - 1),
-            Action::Shrink => settings.size = settings.size.saturating_sub(1),
+            Action::Pick(player, agent) => {
+                if settings.agent[player.seat()] != agent {
+                    settings.agent[player.seat()] = agent;
+                    series.clear_score();
+                    restart = true;
+                }
+            }
+            Action::Grow | Action::Shrink => {
+                let size = if action == Action::Grow {
+                    (settings.size + 1).min(LADDER.len() - 1)
+                } else {
+                    settings.size.saturating_sub(1)
+                };
+                if size != settings.size {
+                    settings.size = size;
+                    restart = true;
+                }
+            }
             Action::Slower => settings.time = (settings.time + 1).min(TIMES.len() - 1),
             Action::Faster => settings.time = settings.time.saturating_sub(1),
             Action::CycleOpening => settings.opening = (settings.opening + 1) % OPENINGS.len(),
             Action::PlayPause => match game.phase {
-                Phase::Idle | Phase::Finished => start(&mut commands, &settings, &mut game, &discs, false),
-                Phase::Running => game.phase = Phase::Paused,
-                Phase::Paused => game.phase = Phase::Running,
-                Phase::Starting => game.start_paused = !game.start_paused,
-            },
-            Action::Step => match game.phase {
+                // Space on the result screen stops the next match from starting.
+                Phase::Finished if series.playing => series.playing = false,
                 Phase::Idle | Phase::Finished => {
-                    start(&mut commands, &settings, &mut game, &discs, true);
-                    game.step = true;
+                    start(&mut commands, &settings, &mut game, &discs, false);
+                    series.playing = true;
                 }
-                Phase::Running => game.phase = Phase::Paused,
-                Phase::Paused | Phase::Starting => game.step = !game.waiting,
+                Phase::Running => {
+                    game.phase = Phase::Paused;
+                    series.playing = false;
+                }
+                Phase::Paused => {
+                    game.phase = Phase::Running;
+                    series.playing = true;
+                }
+                Phase::Starting => {
+                    game.start_paused = !game.start_paused;
+                    series.playing = !game.start_paused;
+                }
             },
+            Action::Step => {
+                series.playing = false;
+                match game.phase {
+                    Phase::Idle | Phase::Finished => {
+                        start(&mut commands, &settings, &mut game, &discs, true);
+                        game.step = true;
+                    }
+                    Phase::Running => game.phase = Phase::Paused,
+                    Phase::Paused | Phase::Starting => game.step = !game.waiting,
+                }
+            }
             Action::Reset => {
                 commands.remove_resource::<Engine>();
                 clear(&mut commands, &discs);
                 *game = Game::new(LADDER[settings.size]);
+                series.playing = false;
+                series.clear_score();
+                restart = false;
             }
         }
-        // Resizing between matches shows the new empty board right away.
-        if !game.in_progress() && game.size != LADDER[settings.size] {
+    }
+    if restart {
+        if series.playing {
+            start(&mut commands, &settings, &mut game, &discs, false);
+        } else if game.in_progress() {
+            start(&mut commands, &settings, &mut game, &discs, true);
+        } else {
+            commands.remove_resource::<Engine>();
             clear(&mut commands, &discs);
             *game = Game::new(LADDER[settings.size]);
         }
+    }
+}
+
+/// While playing, starts the next match once the result has been on screen long enough.
+fn next_match(
+    mut commands: Commands,
+    time: Res<Time>,
+    settings: Res<Settings>,
+    series: Res<Series>,
+    mut game: ResMut<Game>,
+    discs: Query<Entity, With<Disc>>,
+) {
+    if game.phase == Phase::Finished && series.playing && time.elapsed_secs() >= game.finished_at + settings.hold() {
+        start(&mut commands, &settings, &mut game, &discs, false);
     }
 }
 
@@ -305,7 +409,6 @@ fn start(commands: &mut Commands, settings: &Settings, game: &mut Game, discs: &
         size,
         red: ROSTER[settings.agent[0]].entrant,
         yellow: ROSTER[settings.agent[1]].entrant,
-        per_move: Duration::from_secs_f32(settings.per_move()),
         opening_stones: OPENINGS[settings.opening],
         seed: clock_seed(),
     }));
@@ -316,6 +419,8 @@ fn drive_engine(
     time: Res<Time>,
     engine: Option<Res<Engine>>,
     assets: Res<SceneAssets>,
+    settings: Res<Settings>,
+    mut series: ResMut<Series>,
     mut game: ResMut<Game>,
     falling: Query<(), With<Falling>>,
     mut discs: Query<(&Disc, &mut MeshMaterial3d<StandardMaterial>)>,
@@ -329,27 +434,39 @@ fn drive_engine(
     while let Some(reply) = engine.poll() {
         match reply {
             Reply::Ready { opening } => {
+                let speed = settings.drop_speed();
                 for (step, &col) in opening.iter().enumerate() {
                     if let Some((player, row)) = game.drop_disc(col) {
-                        let delay = f32::from(u16::try_from(step).unwrap_or(0)) * OPENING_STAGGER;
-                        spawn_disc(&mut commands, &assets, game.size, player, col, row, delay);
+                        let delay = f32::from(u16::try_from(step).unwrap_or(0)) * OPENING_STAGGER / speed.unwrap_or(1.0);
+                        spawn_disc(&mut commands, &assets, game.size, player, (col, row), delay, speed);
                     }
                 }
                 game.opening_len = opening.len();
                 game.phase = if game.start_paused { Phase::Paused } else { Phase::Running };
             }
             Reply::Moved { col, millis, wins, full } => {
-                game.waiting = false;
+                game.owed = game.owed.saturating_sub(1);
+                game.waiting = game.owed > 0;
                 let Some((player, row)) = game.drop_disc(col) else {
                     game.error = Some(format!("column {} is full", col + 1));
                     game.phase = Phase::Finished;
+                    series.playing = false;
+                    commands.remove_resource::<Engine>();
                     break;
                 };
-                spawn_disc(&mut commands, &assets, game.size, player, col, row, 0.0);
+                spawn_disc(&mut commands, &assets, game.size, player, (col, row), 0.0, settings.drop_speed());
                 game.last = Some((player, col, millis));
                 if wins || full {
-                    game.outcome = Some(if wins { Outcome::Winner(player) } else { Outcome::Draw });
+                    let outcome = if wins { Outcome::Winner(player) } else { Outcome::Draw };
+                    match outcome {
+                        Outcome::Winner(winner) => series.wins[winner.seat()] += 1,
+                        Outcome::Draw => series.draws += 1,
+                    }
+                    game.outcome = Some(outcome);
                     game.phase = Phase::Finished;
+                    game.waiting = false;
+                    game.owed = 0;
+                    game.finished_at = time.elapsed_secs();
                     commands.remove_resource::<Engine>();
                     let line = game.win_line(col, row);
                     for (disc, mut material) in &mut discs {
@@ -368,6 +485,7 @@ fn drive_engine(
                 game.error = Some(message);
                 game.phase = Phase::Finished;
                 game.waiting = false;
+                series.playing = false;
                 commands.remove_resource::<Engine>();
                 break;
             }
@@ -375,7 +493,12 @@ fn drive_engine(
     }
     let wants_move = game.phase == Phase::Running || (game.phase == Phase::Paused && game.step);
     if wants_move && !game.waiting && falling.is_empty() {
-        engine.request_move();
+        let count = if game.phase == Phase::Paused { 1 } else { settings.batch() };
+        engine.request(Think {
+            per_move: Duration::from_secs_f32(settings.per_move()),
+            count,
+        });
+        game.owed = count;
         game.waiting = true;
         game.step = false;
         game.think_started = time.elapsed_secs();
@@ -397,6 +520,17 @@ fn glow_new_disc(world: &mut World, col: u32, row: u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fast_times_batch_and_skip_the_drop() {
+        let at = |time: usize| Settings { time, ..Settings::default() };
+        assert_eq!(TIMES[0], 0.001);
+        assert_eq!(at(0).batch(), u32::from(MAX_BATCH));
+        assert_eq!(at(1).batch(), 2);
+        assert_eq!(at(DEFAULT_TIME).batch(), 1);
+        assert!(!at(2).animated() && at(3).animated());
+        assert!(at(0).hold() >= 0.05 && at(DEFAULT_TIME).hold() <= 1.5);
+    }
 
     #[test]
     fn finds_diagonal_and_ignores_three() {

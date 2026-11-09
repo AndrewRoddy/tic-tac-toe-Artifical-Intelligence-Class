@@ -1,8 +1,10 @@
 //! Background worker thread that owns the agents and the board.
 //!
-//! The UI sends `Think` when it wants the next move (after the previous disc has
-//! landed and the game is not paused). Dropping the `Engine` stops the worker after
-//! its current think.
+//! The UI sends a `Think` when it wants more moves (after the previous disc has
+//! landed and the game is not paused). Each think carries the current time per move,
+//! so the setting can change mid-match, and a count so very fast games can play
+//! several moves per frame. Dropping the `Engine` stops the worker after its
+//! current think.
 
 use std::sync::Mutex;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
@@ -20,9 +22,20 @@ pub enum Reply {
     Failed(String),
 }
 
+/// A request for up to `count` moves, each given `per_move` to think.
+///
+/// `per_move` is both the agent's deadline and the minimum time a move takes on
+/// screen: a fast agent waits out the rest, a slow one simply overruns and the
+/// overrun is not carried into the next move.
+#[derive(Clone, Copy)]
+pub struct Think {
+    pub per_move: Duration,
+    pub count: u32,
+}
+
 #[derive(Resource)]
 pub struct Engine {
-    think: Sender<()>,
+    think: Sender<Think>,
     replies: Mutex<Receiver<Reply>>,
 }
 
@@ -30,14 +43,13 @@ pub struct Config {
     pub size: BoardSize,
     pub red: Entrant,
     pub yellow: Entrant,
-    pub per_move: Duration,
     pub opening_stones: usize,
     pub seed: u64,
 }
 
 impl Engine {
     pub fn spawn(config: Config) -> Self {
-        let (think_tx, think_rx) = mpsc::channel::<()>();
+        let (think_tx, think_rx) = mpsc::channel::<Think>();
         let (reply_tx, reply_rx) = mpsc::channel::<Reply>();
         thread::Builder::new()
             .name("c4-engine".to_owned())
@@ -49,8 +61,8 @@ impl Engine {
         }
     }
 
-    pub fn request_move(&self) {
-        self.think.send(()).ok();
+    pub fn request(&self, think: Think) {
+        self.think.send(think).ok();
     }
 
     /// Next reply, if one is waiting. A dead worker reports `Failed`.
@@ -64,7 +76,7 @@ impl Engine {
     }
 }
 
-fn run(config: &Config, think: &Receiver<()>, reply: &Sender<Reply>) {
+fn run(config: &Config, think: &Receiver<Think>, reply: &Sender<Reply>) {
     let started = match start_match(
         config.size,
         config.red,
@@ -82,19 +94,25 @@ fn run(config: &Config, think: &Receiver<()>, reply: &Sender<Reply>) {
     if reply.send(Reply::Ready { opening: started.opening }).is_err() {
         return;
     }
-    while think.recv().is_ok() {
-        let begun = Instant::now();
-        let col = game.choose(begun + config.per_move);
-        let millis = begun.elapsed().as_millis();
-        if !game.legal(col) {
-            reply.send(Reply::Failed(format!("agent chose illegal column {}", col + 1))).ok();
-            return;
-        }
-        let wins = game.wins(col);
-        game.play(col);
-        let full = game.is_full();
-        if reply.send(Reply::Moved { col, millis, wins, full }).is_err() || wins || full {
-            return;
+    while let Ok(request) = think.recv() {
+        for _ in 0..request.count {
+            let begun = Instant::now();
+            let col = game.choose(begun + request.per_move);
+            let millis = begun.elapsed().as_millis();
+            if !game.legal(col) {
+                reply.send(Reply::Failed(format!("agent chose illegal column {}", col + 1))).ok();
+                return;
+            }
+            let wins = game.wins(col);
+            game.play(col);
+            let full = game.is_full();
+            let rest = request.per_move.saturating_sub(begun.elapsed());
+            if !rest.is_zero() {
+                thread::sleep(rest);
+            }
+            if reply.send(Reply::Moved { col, millis, wins, full }).is_err() || wins || full {
+                return;
+            }
         }
     }
 }
