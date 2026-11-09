@@ -116,3 +116,47 @@ fn run(config: &Config, think: &Receiver<Think>, reply: &Sender<Reply>) {
         }
     }
 }
+
+#[cfg(test)]
+mod probe {
+    use super::*;
+    use crate::sizes::LADDER;
+
+    /// Plays engine games back to back at 1 ms a move (run with --ignored, watch memory).
+    #[test]
+    #[ignore = "manual memory probe"]
+    fn engine_games_back_to_back() {
+        let until = Instant::now() + Duration::from_secs(25);
+        let mut games = 0;
+        while Instant::now() < until {
+            let engine = Engine::spawn(Config {
+                size: LADDER[5],
+                red: Entrant::Mcts,
+                yellow: Entrant::Learned,
+                opening_stones: 0,
+                seed: games,
+            });
+            let mut done = false;
+            let mut asked = false;
+            while !done {
+                if !asked {
+                    engine.request(Think { per_move: Duration::from_millis(1), count: 16 });
+                    asked = true;
+                }
+                match engine.poll() {
+                    Some(Reply::Moved { wins, full, .. }) => {
+                        done = wins || full;
+                    }
+                    Some(Reply::Failed(_)) => done = true,
+                    Some(Reply::Ready { .. }) => {}
+                    None => {
+                        asked = false;
+                        thread::sleep(Duration::from_millis(1));
+                    }
+                }
+            }
+            games += 1;
+        }
+        eprintln!("games: {games}");
+    }
+}

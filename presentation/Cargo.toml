@@ -9,6 +9,8 @@ edition = "2024"
 [dependencies]
 bevy = "0.20.1"
 c4 = { path = ".." }
+# Extruded 3D text meshes from font outlines (presentation mode).
+meshtext = "0.3.2"
 
 [profile.dev]
 opt-level = 1

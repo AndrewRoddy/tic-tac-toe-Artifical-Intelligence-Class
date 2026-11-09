@@ -1,15 +1,5 @@
 # Connect Four Arena 3D — Presentation App Spec
 
-# TODO
-
-- [ ] Model the colors and style off of C:/Coding/Watch-Ember
-- [ ] Make a presentation mode, where if I press play in the top right or something, it begins the presentation
-  - this presentation should kind of explain everything that we did and how like certain things were solved and why they were solved by
-  - Make everything in the presentation 3d down to the text
-- [ ] Make a multiple board mode where I can press plus and expand the number of board
-- [ ] Make a lot of cool animations. Like a winning animation or effect stuff like that
-- [ ] Make a 'board expanding' animation where we literally see the size of the board increase like it widens, the increases in height, make it a really cool animation
-
 A Bevy app for the class presentation. It shows the project in 3D: pick two of
 our eight agents, grow or shrink the board, and watch the agents play.
 
@@ -83,6 +73,71 @@ thread and never leave it.
 Random openings use `c4::dataset::sample` (random, no immediate wins), like the
 tournament's openings. Agent seeds come from the clock, so a match is different each time.
 
+## Presentation mode
+
+- **present (p)** in the top-right corner (or the P key) opens a 15-slide deck that walks
+  through the project: the question, the scale, the solver, the data, each agent family,
+  the tournament, and why the results came out as they did. Every number is from
+  `results/` or `midterm_proposal.md`; the content lives in `src/slides.rs`.
+- **All 3D:** the 2D UI is hidden; titles, body text, labels and numbers are extruded
+  meshes built from the Windows fonts' glyph outlines (`meshtext`, `src/text3d.rs`).
+  Visuals are 3D too: boards with dropping discs, growing bar charts, agent tiles, and
+  a layer-stack picture of the network.
+- **Live solve:** slide 4's 7x6 position is solved by the project's own solver in a
+  background thread at startup (about 70 ms), and its W/D/L column labels are shown.
+- **Keys:** Right / Space / click next, Left back, Home first slide, Esc back to the
+  arena (also after the last slide). The slides sit on a stage far from the arena table,
+  so the arena's match keeps its state.
+- **Transitions:** opening the deck flies the camera from the arena table to the stage.
+  On every slide change the old pieces fly off the way you are going and the new ones
+  sweep in from the other side, staggered; the camera settles at a slightly different
+  angle for each slide and drifts gently. Each change also gives a quick camera
+  push-in and a flash of the stage light, so every click has some impact.
+- **Always moving** (`src/backdrop.rs`): a see-through 7x6 board floats low behind the
+  slides playing a real game (MCTS vs learned alpha-beta through the engine thread,
+  from a random 4-stone opening); the winning line glows, then it starts again. It
+  glides to a new spot on each slide. Faint discs drift down far behind everything.
+- Dev aid: `C4_SLIDE=n` with `C4_SCREENSHOT` opens slide n for a screenshot; `a` in `C4_KEYS` returns to the arena; `>` in
+  `C4_KEYS` goes to the next slide, `C4_KEYS_AT=secs` delays the keys,
+  `C4_AFTER_WIN=secs` shoots that long after the first game ends, `C4_YELLOW=n`
+  picks Yellow's agent.
+
+### Presenter window and speaker notes
+
+- Every slide has speaker notes and a time budget (`src/slides.rs`); the budgets add
+  up to 10 minutes. The same notes are in `SPEAKER_NOTES.md`.
+- **N** during the slides opens a second window (drag it to your own screen): this
+  slide's notes, the talk clock (red past 10:00), time on this slide against its
+  budget, whether you are ahead or behind plan, and the next slide's title. N again or
+  closing the window puts it away. The projector only ever shows the 3D slides.
+
+## Robustness and performance
+
+Measured on the presentation laptop (Intel Iris Xe, 2400 x 1350 at 150% scaling):
+
+- Bevy 0.20's GPU light clustering made the Intel driver lose the device (a crash)
+  when games restart many times a second; it is turned off (CPU clustering is free
+  with our few lights).
+- **Memory leaks found and fixed** (they caused stalls, then a lost device, after a
+  minute or two, even idle):
+  - Bevy's `system_font_discovery` leaked on every 2D text change (hundreds of MB a
+    second in fast games). It is off; the 2D UI loads Segoe UI and Times New Roman
+    from the Windows font folder into font assets at startup instead.
+  - Adding a mesh to an entity after it was spawned, and swapping materials on live
+    entities, also grew render memory. HUD labels spawn a fresh child per change;
+    pooled discs are spawned with their mesh and material, keep one colour per pool
+    slot (slot k is always move k), and the win glow is a halo spawned over each disc.
+  - Unused pool discs are parked below the table instead of hidden.
+  - After the fixes: 9 boards at 1 ms for 90 s holds about 1.3 GB at about 40 fps with
+    no stalls; normal play holds about 1.6 GB.
+- 3D text meshes are cached with a bound (600), and HUD labels re-mesh at most about
+  12 times a second.
+- MSAA is off on both cameras with FXAA instead (36 -> 29 ms a frame with the HUD);
+  small HUD text is a single front face; shadows use 2 cascades.
+- With more than 2 boards, or below 0.1 s per move, discs use a plain 20-sided mesh
+  instead of the ridged one (hundreds of full-detail discs are too much for the GPU).
+- `C4_FPS=1` logs the frame rate. The 2D backup mode (U) is the fastest setting.
+
 ## 3D scene
 
 - **Board:** a custom mesh, a blue plate with a round hole in every cell (front face,
@@ -92,10 +147,36 @@ tournament's openings. Agent seeds come from the clock, so a match is different 
   below 0.1 s per move discs appear in place with no drop.
 - **"Thinking" disc:** the next player's disc hovers and bobs above the board, with a
   progress bar for the time per move.
-- **Win:** the 4+ discs in the winning line glow and pulse. A banner names the winner.
+- **Win** (`src/effects.rs`): the 4+ winning discs glow and pulse, pop forward, a
+  glowing beam draws itself through them, confetti bursts out in the winner's colours
+  and a coloured light flashes. A banner names the winner and their score number
+  bumps. The effects (not the glow) are skipped below 0.1 s per move.
+- **Quality:** pieces are lathed meshes like the real ones (raised outer rim, a
+  recessed face with two concentric ridges, rounded edges) in glossy clear-coated
+  plastic; the board's holes are bevelled on both faces; the camera has soft bloom so
+  glows, the win beam and flashes shine. Used in the arena and on the slides.
+- **Landing:** each disc gives the board a small rock back when it lands.
+- **Resize morph:** arena boards are one tile per cell plus a stretchable frame. On a
+  resize the frame slides outward while new columns unfold, then the top rises while
+  new rows grow in (shrinking runs height first, then width), about 1.3 s. Agents wait
+  for the morph before moving; with several boards each one glides to its new spot.
 - **Camera:** orbit with right-drag, zoom with the scroll wheel, a slow idle sway, and
   automatic framing when the board size changes. Directional light with shadows,
   ambient light, a dark table.
+
+## 3D HUD and backup mode
+
+- **The arena UI is 3D by default** (`src/hud.rs`): every button, label, number and
+  bar is a mesh (extruded text, blocks), drawn by a second camera on render layer 1 so
+  the scene never covers it and the orbit camera never moves it. It mirrors the flat
+  layout below. Buttons are picked with Bevy's mesh picking: they lift and tilt toward
+  you on hover, sink when pressed, and on click spring back with a flash and a ring of
+  light. Selected agents sit raised in their player's colour; the score numbers jump.
+- **Shared readout** (`src/readout.rs`): every string both UIs show is computed once a
+  frame, so they always agree.
+- **Backup mode:** U, or the "2D UI" / "3D UI" button, switches to the flat Ember UI
+  (`src/ui.rs`) and also turns off bloom and shadows for slower machines.
+  `C4_LITE=1` starts in backup mode. The slides are always 3D.
 
 ## UI layout
 
@@ -118,7 +199,7 @@ tournament's openings. Agent seeds come from the clock, so a match is different 
 ### Series and score
 
 - **Play** starts a series: when a match ends the winner's score goes up (or draws),
-  the result shows briefly (6x the move time, 0.05 s to 1.5 s), and the next match
+  the result shows briefly (6x the move time, 0.1 s to 1.5 s), and the next match
   starts by itself. Space on the result screen stops the series there.
 - The score (Red wins : Yellow wins, draws, games) sits under the title.
 - Every control works mid-match:
@@ -127,6 +208,16 @@ tournament's openings. Agent seeds come from the clock, so a match is different 
   - Time per move applies from the next move.
   - Opening applies from the next match.
 - Reset stops play, clears the board and the score.
+
+### Several boards at once
+
+- **boards - / +** (or `,` / `.`) runs 1 to 9 matches side by side between the same two
+  agents, in a grid (one row up to 3, then 2 x 2, 3 x 2, 3 x 3). Each board is a table
+  entity with its own `Game` and engine thread; Play, Pause, Step and Reset apply to
+  all of them, and every result goes into the one score.
+- With several rows the camera tilts down so the back rows show over the front ones.
+- The status line summarises all boards; the move list shows board 1. The hovering
+  "thinking" disc is shown only with a single board.
 
 ### Keyboard shortcuts (for presenting)
 
