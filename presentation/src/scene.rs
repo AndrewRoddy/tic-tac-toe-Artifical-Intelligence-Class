@@ -31,10 +31,27 @@ const GRAVITY: f32 = 28.0;
 const BOUNCE: f32 = 0.28;
 const SETTLE_SPEED: f32 = 1.2;
 const POP_SECONDS: f32 = 0.45;
-/// Pixels the UI covers on each side, used to frame the board in the free area.
-const UI_SIDE_PX: f32 = 300.0;
-const UI_TOP_PX: f32 = 115.0;
-const UI_BOTTOM_PX: f32 = 175.0;
+/// Logical pixels the arena UI covers on each edge of the window. `ui.rs` measures
+/// its panels every frame; the camera frames the boards in what is left, so no board
+/// ever sits behind a panel.
+#[derive(Resource, Clone, Copy)]
+pub struct UiMargins {
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+impl Default for UiMargins {
+    fn default() -> Self {
+        Self {
+            left: 330.0,
+            right: 330.0,
+            top: 110.0,
+            bottom: 200.0,
+        }
+    }
+}
 
 
 pub struct ScenePlugin;
@@ -42,6 +59,7 @@ pub struct ScenePlugin;
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(BG))
+            .init_resource::<UiMargins>()
             .insert_resource(GlobalAmbientLight {
                 color: Color::srgb(1.0, 0.9, 0.78),
                 brightness: 350.0,
@@ -101,9 +119,9 @@ pub struct Morphing;
 
 /// A board's current shape in cells; fractional while it morphs.
 #[derive(Component)]
-struct Shape {
-    w: f32,
-    h: f32,
+pub struct Shape {
+    pub w: f32,
+    pub h: f32,
 }
 
 /// A resize in progress, from the shape it started at.
@@ -591,6 +609,26 @@ fn spawn_board_pieces(commands: &mut Commands, assets: &SceneAssets, root: Entit
     }
 }
 
+/// Builds a morphable board (cell tiles plus a frame) under `root`, for the slides.
+pub fn spawn_shaped_board(commands: &mut Commands, assets: &SceneAssets, root: Entity, size: BoardSize) {
+    spawn_board_pieces(commands, assets, root, size, None);
+    commands.entity(root).insert(Shape {
+        w: to_f32(size.columns),
+        h: to_f32(size.rows),
+    });
+}
+
+/// Starts a slide board morphing from its current shape to `to` (it has cells for `have`).
+pub fn morph_shaped_board(commands: &mut Commands, assets: &SceneAssets, root: Entity, from: (f32, f32), have: BoardSize, to: BoardSize) {
+    let grown = BoardSize {
+        columns: have.columns.max(to.columns),
+        rows: have.rows.max(to.rows),
+        label: to.label,
+    };
+    spawn_board_pieces(commands, assets, root, grown, Some(have));
+    commands.entity(root).insert(Morph { from, to, t: 0.0 });
+}
+
 const MORPH_SECONDS: f32 = 1.3;
 
 fn smooth(t: f32) -> f32 {
@@ -681,15 +719,33 @@ fn shape_boards(
 }
 
 /// Columns and rows of the table grid for `count` boards.
-pub const fn grid(count: usize) -> (usize, usize) {
+pub fn grid(count: usize) -> (usize, usize) {
     match count {
         0 | 1 => (1, 1),
         2 => (2, 1),
         3 => (3, 1),
         4 => (2, 2),
         5 | 6 => (3, 2),
-        _ => (3, 3),
+        7..=9 => (3, 3),
+        _ => {
+            // A wall a little wider than tall, like the free part of the window.
+            let columns = (usize_f32(count) * 1.6).sqrt().ceil().max(1.0);
+            #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss, reason = "small positive count")]
+            let columns = columns as usize;
+            (columns, count.div_ceil(columns))
+        }
     }
+}
+
+/// Up to nine boards stand in rows going back; more than that stand in a flat wall,
+/// rows stacked upward, so every board faces the camera.
+pub const fn stacked(count: usize) -> bool {
+    count > 9
+}
+
+/// Height of one row in a wall of boards.
+fn wall_step(size: BoardSize) -> f32 {
+    board_top(size) + TABLE_GAP
 }
 
 /// Gap between boards side by side, and the distance between rows (front to back).
@@ -703,6 +759,11 @@ pub fn table_offset(index: usize, count: usize, size: BoardSize) -> Vec3 {
     let row = index / columns;
     let step_x = to_f32(size.columns) + MARGIN * 2.0 + TABLE_GAP;
     let x = (usize_f32(column) - (usize_f32(columns) - 1.0) / 2.0) * step_x;
+    if stacked(count) {
+        // Top row first, the bottom row stands on the table.
+        let y = (usize_f32(rows) - 1.0 - usize_f32(row)) * wall_step(size);
+        return Vec3::new(x, y, 0.0);
+    }
     let z = ((usize_f32(rows) - 1.0) / 2.0 - usize_f32(row)) * ROW_DEPTH;
     Vec3::new(x, 0.0, z)
 }
@@ -932,7 +993,8 @@ fn orbit_camera(
     buttons: Res<ButtonInput<MouseButton>>,
     motion: Res<AccumulatedMouseMotion>,
     scroll: Res<AccumulatedMouseScroll>,
-    windows: Query<&Window>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    margins: Res<UiMargins>,
     mut cameras: Query<(&mut OrbitCamera, &mut Transform)>,
 ) {
     let Ok(window) = windows.single() else {
@@ -955,24 +1017,33 @@ fn orbit_camera(
     // boards the camera looks down more so the back rows show over the front ones.
     let size = settings.board_size();
     let (columns, rows) = grid(settings.boards);
-    let back_rows = usize_f32(rows) - 1.0;
+    let wall = stacked(settings.boards);
+    // A wall faces the camera; rows going back need it to look down over them.
+    let back_rows = if wall { 0.0 } else { usize_f32(rows) - 1.0 };
     let lift = back_rows * 0.32;
     let width_px = window.width().max(1.0);
     let height_px = window.height().max(1.0);
-    let free_w = (width_px - UI_SIDE_PX * 2.0).max(width_px * 0.35);
-    let free_h = (height_px - UI_TOP_PX - UI_BOTTOM_PX).max(height_px * 0.35);
+    let free_w = (width_px - margins.left - margins.right).max(width_px * 0.3);
+    let free_h = (height_px - margins.top - margins.bottom).max(height_px * 0.3);
     let half_fov = (FRAC_PI_4 / 2.0).tan();
     let step_x = to_f32(size.columns) + MARGIN * 2.0 + TABLE_GAP;
     // Perspective makes the front row look wider than the back, so leave room for it.
     let board_w = (usize_f32(columns) * step_x - TABLE_GAP + 0.6) * (1.0 + back_rows * 0.14);
-    let board_h = board_top(size) + 1.6 + back_rows * ROW_DEPTH * 0.8;
+    let board_h = if wall {
+        usize_f32(rows) * wall_step(size) - TABLE_GAP + 1.0
+    } else {
+        board_top(size) + 1.6 + back_rows * ROW_DEPTH * 0.8
+    };
     let fit = (board_w * height_px / (2.0 * half_fov * free_w)).max(board_h * height_px / (2.0 * half_fov * free_h)) * 1.08;
     let wanted = fit * orbit.zoom;
     let blend = 1.0 - (-time.delta_secs() * 4.0).exp();
     orbit.distance += (wanted - orbit.distance) * blend;
     let world_per_px = 2.0 * orbit.distance * half_fov / height_px;
-    let shift = (UI_BOTTOM_PX - UI_TOP_PX) / 2.0 * world_per_px;
-    let target = board_centre(size) + Vec3::new(0.0, 0.5 - shift, 0.0);
+    // Centre the boards in the free area, not the window.
+    let shift_y = (margins.bottom - margins.top) / 2.0 * world_per_px;
+    let shift_x = (margins.right - margins.left) / 2.0 * world_per_px;
+    let wall_centre = if wall { (usize_f32(rows) - 1.0) * wall_step(size) / 2.0 } else { 0.0 };
+    let target = board_centre(size) + Vec3::new(shift_x, 0.5 - shift_y + wall_centre, 0.0);
     orbit.target = orbit.target.lerp(target, blend);
     orbit.lift += (lift - orbit.lift) * blend;
 

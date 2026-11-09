@@ -5,7 +5,6 @@ mod backdrop;
 mod effects;
 mod engine;
 mod game;
-mod hud;
 mod present;
 mod presenter;
 mod readout;
@@ -13,7 +12,6 @@ mod roster;
 mod scene;
 mod sizes;
 mod slides;
-mod text3d;
 mod theme;
 mod ui;
 
@@ -21,7 +19,7 @@ use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy::window::WindowResolution;
 
-use game::{Action, GamePlugin, Pending, Player, Series, UiStyle};
+use game::{Action, GamePlugin, Pending, Player, Series};
 use present::{Deck, Mode, PresentPlugin};
 use scene::ScenePlugin;
 use ui::UiPlugin;
@@ -31,7 +29,14 @@ fn main() {
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
             title: "Connect Four AI Arena".to_owned(),
-            resolution: WindowResolution::new(1600, 900),
+            // C4_WINDOW=1536x816 tries another window size (handy for screenshots).
+            resolution: std::env::var("C4_WINDOW")
+                .ok()
+                .and_then(|text| {
+                    let (w, h) = text.split_once('x')?;
+                    Some(WindowResolution::new(w.parse().ok()?, h.parse().ok()?))
+                })
+                .unwrap_or_else(|| WindowResolution::new(1600, 900)),
             // C4_NOVSYNC=1 for uncapped frames (handy when measuring).
             present_mode: if std::env::var("C4_NOVSYNC").is_ok() {
                 bevy::window::PresentMode::AutoNoVsync
@@ -42,7 +47,7 @@ fn main() {
         }),
         ..default()
     }))
-    .add_plugins((GamePlugin, ScenePlugin, UiPlugin, PresentPlugin, effects::EffectsPlugin, backdrop::BackdropPlugin, readout::ReadoutPlugin, hud::HudPlugin, presenter::PresenterPlugin));
+    .add_plugins((GamePlugin, ScenePlugin, UiPlugin, PresentPlugin, effects::EffectsPlugin, backdrop::BackdropPlugin, readout::ReadoutPlugin, presenter::PresenterPlugin));
     // Bevy 0.20's GPU light clustering crashed the Intel Iris Xe driver (DeviceLost)
     // when games restart many times a second. We only have a few lights, so CPU
     // clustering is free; turn the GPU path off.
@@ -50,6 +55,7 @@ fn main() {
         clusters.gpu_clustering = None;
     });
     app.add_systems(PreStartup, theme::load_fonts);
+    app.add_systems(Update, toggle_fullscreen);
     // C4_FPS=1 logs the frame rate once a second.
     if std::env::var("C4_FPS").is_ok() {
         app.add_plugins((
@@ -71,10 +77,6 @@ fn main() {
                 }
             },
         );
-    }
-    // C4_LITE=1 starts in the flat backup UI with bloom and shadows off.
-    if std::env::var("C4_LITE").is_ok() {
-        app.insert_resource(UiStyle { solid: false });
     }
     if let Some(capture) = Capture::from_env() {
         app.insert_resource(capture).add_systems(Update, (capture_and_exit, simulate_click));
@@ -170,6 +172,7 @@ fn capture_and_exit(
     series: Res<Series>,
     mut mode: ResMut<NextState<Mode>>,
     mut exit: MessageWriter<AppExit>,
+    others: Query<Entity, (With<bevy::window::Window>, Without<bevy::window::PrimaryWindow>)>,
 ) {
     let now = time.elapsed_secs();
     // The slide opens on the first frame; keys (e.g. `a` back to the arena) come later.
@@ -193,8 +196,7 @@ fn capture_and_exit(
                         None
                     }
                     '>' => {
-                        let next = deck.index + 1;
-                        deck.go_to(next);
+                        deck.next();
                         None
                     }
                     _ => None,
@@ -214,11 +216,32 @@ fn capture_and_exit(
         }
         1 if capture.after_win.is_none() && now >= capture.seconds => {
             commands.spawn(Screenshot::primary_window()).observe(save_to_disk(capture.path.clone()));
+            // C4_NOTES_SHOT=notes.png also saves the presenter window.
+            if let Ok(path) = std::env::var("C4_NOTES_SHOT") {
+                for window in &others {
+                    commands.spawn(Screenshot::window(window)).observe(save_to_disk(path.clone()));
+                }
+            }
             capture.stage = 2;
         }
         2 if now >= capture.seconds + 1.5 => {
             exit.write(AppExit::Success);
         }
         _ => {}
+    }
+}
+
+/// F11 switches the main window between a normal window and borderless fullscreen.
+fn toggle_fullscreen(keys: Res<ButtonInput<KeyCode>>, mut windows: Query<&mut Window, With<bevy::window::PrimaryWindow>>) {
+    if !keys.just_pressed(KeyCode::F11) {
+        return;
+    }
+    for mut window in &mut windows {
+        window.mode = match window.mode {
+            bevy::window::WindowMode::Windowed => {
+                bevy::window::WindowMode::BorderlessFullscreen(bevy::window::MonitorSelection::Current)
+            }
+            _ => bevy::window::WindowMode::Windowed,
+        };
     }
 }

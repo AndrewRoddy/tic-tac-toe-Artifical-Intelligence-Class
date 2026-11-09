@@ -79,13 +79,32 @@ tournament's openings. Agent seeds come from the clock, so a match is different 
   through the project: the question, the scale, the solver, the data, each agent family,
   the tournament, and why the results came out as they did. Every number is from
   `results/` or `midterm_proposal.md`; the content lives in `src/slides.rs`.
-- **All 3D:** the 2D UI is hidden; titles, body text, labels and numbers are extruded
-  meshes built from the Windows fonts' glyph outlines (`meshtext`, `src/text3d.rs`).
-  Visuals are 3D too: boards with dropping discs, growing bar charts, agent tiles, and
-  a layer-stack picture of the network.
+- **Visuals first, words in the notes:** each slide shows only a small kicker, a
+  title and the page number. Everything else that used to be body text is in the
+  speaker notes (`SPEAKER_NOTES.md` and the presenter window). The visual is large and
+  centred under the title: boards with dropping discs, growing bar charts, agent
+  tiles, and a layer-stack picture of the network.
+- **Beats, not walls of slides:** each slide is 2 to 4 beats (51 in all, about ten
+  seconds each). Next reveals the slide's next piece: the next bar or group of bars,
+  the next family of agents, the W/D/L labels, the network's layers, then its column
+  scores. A beat can carry one short line under the visual (`Beat::caption`), which
+  leaves when the next beat comes. Dots over the page number fill in per beat. Back
+  steps back a beat (rebuilding the slide as it was then); from a slide's first beat
+  it goes to the previous slide's last beat.
+- **The growing board** (slide 2, `Visual::Expand`): one board that physically grows
+  7x6, then 8x7, then 9x8, one beat each. It is the arena's morphing board
+  (`scene::spawn_shaped_board` / `morph_shaped_board`): the frame slides outward while
+  the new column unfolds, then the top rises while the new row grows in. The discs
+  already played slide along with their columns, and a couple of new ones drop into
+  the new space once it is done. The size (`7 x 6`, ...) is written large beside it
+  and swaps on each beat; the last beat asks the question.
+- **3D visuals, 2D text:** all words (titles, bar labels, values, captions, the W/D/L
+  labels) are flat 2D text pinned to points on the stage. They follow the camera's
+  drift, always face the screen, and are sized from the window height so they stay
+  sharp and readable. They fade and slide in with the slide's pieces.
 - **Live solve:** slide 4's 7x6 position is solved by the project's own solver in a
   background thread at startup (about 70 ms), and its W/D/L column labels are shown.
-- **Keys:** Right / Space / click next, Left back, Home first slide, Esc back to the
+- **Keys:** Right / Space / click next beat, Left back a beat, Home first slide, Esc back to the
   arena (also after the last slide). The slides sit on a stage far from the arena table,
   so the arena's match keeps its state.
 - **Transitions:** opening the deck flies the camera from the arena table to the stage.
@@ -93,23 +112,27 @@ tournament's openings. Agent seeds come from the clock, so a match is different 
   sweep in from the other side, staggered; the camera settles at a slightly different
   angle for each slide and drifts gently. Each change also gives a quick camera
   push-in and a flash of the stage light, so every click has some impact.
-- **Always moving** (`src/backdrop.rs`): a see-through 7x6 board floats low behind the
-  slides playing a real game (MCTS vs learned alpha-beta through the engine thread,
-  from a random 4-stone opening); the winning line glows, then it starts again. It
-  glides to a new spot on each slide. Faint discs drift down far behind everything.
+- **Always moving** (`src/backdrop.rs`): faint discs drift down far behind everything.
+  The see-through backdrop board that used to play behind the slides is hidden, so
+  nothing sits behind the centred visuals.
 - Dev aid: `C4_SLIDE=n` with `C4_SCREENSHOT` opens slide n for a screenshot; `a` in `C4_KEYS` returns to the arena; `>` in
-  `C4_KEYS` goes to the next slide, `C4_KEYS_AT=secs` delays the keys,
+  `C4_KEYS` goes one beat on (`>>>` three beats), `C4_KEYS_AT=secs` delays the keys,
   `C4_AFTER_WIN=secs` shoots that long after the first game ends, `C4_YELLOW=n`
   picks Yellow's agent.
 
 ### Presenter window and speaker notes
 
-- Every slide has speaker notes and a time budget (`src/slides.rs`); the budgets add
-  up to 10 minutes. The same notes are in `SPEAKER_NOTES.md`.
+- Every slide has a time budget and a few lines to say per beat (`src/slides.rs`);
+  the budgets add up to 10 minutes. The same notes, numbered by beat, are in
+  `SPEAKER_NOTES.md`.
 - **N** during the slides opens a second window (drag it to your own screen): this
-  slide's notes, the talk clock (red past 10:00), time on this slide against its
-  budget, whether you are ahead or behind plan, and the next slide's title. N again or
-  closing the window puts it away. The projector only ever shows the 3D slides.
+  beat's lines, which step of the slide you are on, the talk clock (red past 10:00),
+  time on this slide against its budget, whether you are ahead or behind plan, and
+  what the next press brings (the next beat's lines, or the next slide's title). N again or
+  closing the window puts it away. The projector only ever shows the slides.
+- Notes are written to be read aloud, in plain spoken language, with no em dashes.
+- Dev aid: `C4_NOTES_SHOT=notes.png` (with `C4_SCREENSHOT`) opens the window by itself
+  and saves a screenshot of it too.
 
 ## Robustness and performance
 
@@ -124,19 +147,19 @@ Measured on the presentation laptop (Intel Iris Xe, 2400 x 1350 at 150% scaling)
     second in fast games). It is off; the 2D UI loads Segoe UI and Times New Roman
     from the Windows font folder into font assets at startup instead.
   - Adding a mesh to an entity after it was spawned, and swapping materials on live
-    entities, also grew render memory. HUD labels spawn a fresh child per change;
-    pooled discs are spawned with their mesh and material, keep one colour per pool
+    entities, also grew render memory. Pooled discs are spawned with their mesh and material, keep one colour per pool
     slot (slot k is always move k), and the win glow is a halo spawned over each disc.
   - Unused pool discs are parked below the table instead of hidden.
   - After the fixes: 9 boards at 1 ms for 90 s holds about 1.3 GB at about 40 fps with
     no stalls; normal play holds about 1.6 GB.
-- 3D text meshes are cached with a bound (600), and HUD labels re-mesh at most about
-  12 times a second.
-- MSAA is off on both cameras with FXAA instead (36 -> 29 ms a frame with the HUD);
-  small HUD text is a single front face; shadows use 2 cascades.
+- MSAA is off with FXAA instead; shadows use 2 cascades.
+- Systems that need the window size ask for the primary window, so opening the
+  presenter window cannot stall the slides or the camera.
 - With more than 2 boards, or below 0.1 s per move, discs use a plain 20-sided mesh
   instead of the ridged one (hundreds of full-detail discs are too much for the GPU).
-- `C4_FPS=1` logs the frame rate. The 2D backup mode (U) is the fastest setting.
+- `C4_FPS=1` logs the frame rate.
+- More than 9 boards: no win beams, lights or confetti (the glow still marks wins),
+  and the screen-edge flash only fires at animated speeds, at most every 0.8 s.
 
 ## 3D scene
 
@@ -164,36 +187,53 @@ Measured on the presentation laptop (Intel Iris Xe, 2400 x 1350 at 150% scaling)
   automatic framing when the board size changes. Directional light with shadows,
   ambient light, a dark table.
 
-## 3D HUD and backup mode
+## Arena UI (2D)
 
-- **The arena UI is 3D by default** (`src/hud.rs`): every button, label, number and
-  bar is a mesh (extruded text, blocks), drawn by a second camera on render layer 1 so
-  the scene never covers it and the orbit camera never moves it. It mirrors the flat
-  layout below. Buttons are picked with Bevy's mesh picking: they lift and tilt toward
-  you on hover, sink when pressed, and on click spring back with a flash and a ring of
-  light. Selected agents sit raised in their player's colour; the score numbers jump.
-- **Shared readout** (`src/readout.rs`): every string both UIs show is computed once a
-  frame, so they always agree.
-- **Backup mode:** U, or the "2D UI" / "3D UI" button, switches to the flat Ember UI
-  (`src/ui.rs`) and also turns off bloom and shadows for slower machines.
-  `C4_LITE=1` starts in backup mode. The slides are always 3D.
+- **The arena UI is flat 2D, always** (`src/ui.rs`); the 3D HUD and its toggle are
+  gone. Text sizes were raised for a high-DPI laptop screen (body 15 to 19 px, values
+  19 px, scores 46 px).
+- **Fits any window:** the layout is drawn for 1600 x 920 and `ui::fit_ui` sets
+  `UiScale` to fit the actual window (smaller when maximised on a 1080p laptop at
+  125%, larger on a big projector). Slide text divides by the same scale so it keeps
+  its size. F11 toggles borderless fullscreen. `C4_WINDOW=1536x816` starts at another
+  size, for screenshots.
+- **Shared readout** (`src/readout.rs`): every string the UI shows is computed once a
+  frame from the game state.
+- **The boards are never behind a panel:** the UI measures its top bar, side panels
+  and bottom bar every frame and hands the sizes to the camera (`scene::UiMargins`),
+  which frames the boards in the space left between them.
+- **Animations:**
+  - panels slide in (with a small overshoot) whenever the arena opens, including when
+    coming back from the slides;
+  - buttons ease their colours, spring up on hover, squash when pressed, flash and
+    send out a ripple ring (in the player's colour for agent picks) when clicked;
+  - a value that changes (board size, time, board count) pops and flashes orange;
+  - a score that goes up bumps, and a "+1" floats up off it;
+  - a win flashes the window edge in the winner's colour, and the result banner grows
+    in and pulses orange;
+  - switching agent slides the new agent's card in; its Elo bar eases to the new value.
 
 ## UI layout
 
 ```
-┌────────────── Connect Four: Train on 8x7, Test on 9x8 ──────────────┐
-│ RED (first)        │                              │ YELLOW (second) │
-│ [ safe-random    ] │                              │ [ ...         ] │
-│ [ alpha-beta-... ] │          3D board            │                 │
-│  ...8 agents       │                              │  ...8 agents    │
-│ ── card ──         │                              │ ── card ──      │
-│ how it works       │                              │ how it works    │
-│ Elo / accuracy     │                              │ Elo / accuracy  │
-├────────────────────┴──────────────────────────────┴─────────────────┤
-│ Board [−] 9×8 test [+]  Time [−] 1.0s [+]  Opening [empty]          │
-│ [▶ Play] [⏸ Pause] [⏭ Step] [⟲ Reset]   status: Red (mcts) thinking  │
-│ moves: 5 5 4 6 …                                                     │
-└──────────────────────────────────────────────────────────────────────┘
+ Connect Four AI              RED  2 : 1  YELLOW                   [Slides (P)]
+ Trained on 8 x 7, ...     MCTS (UCT)  vs  Alpha-beta (learned)
+                               draws 0  .  games 3
++------------------+                                        +------------------+
+| Red . moves first|                                        | Yellow . second  |
+| CHOOSE AN AGENT  |               3D board(s)              | CHOOSE AN AGENT  |
+| [ 8 agents ... ] |                                        | [ 8 agents ... ] |
+| card: name, how, |                                        | card ...         |
+| results, Elo bar |                                        |                  |
++------------------+                                        +------------------+
++----------------------------------------------------------------------------+
+| BOARD SIZE          TIME PER MOVE   BOARDS AT ONCE   STARTING POSITION      |
+| [-] 9 x 8 . test [+] [-] 1 s [+]   [-] 4 [+]        [Empty board]          |
+|                                                [ Play ] [One move] [Reset] |
+| Red (MCTS (UCT)) is thinking...                         THINKING [=====   ] |
+| Moves (4): 4 5 5 5                                                         |
+| Space play/pause  S one move  R reset  - + board size  [ ] time  , . boards |
++----------------------------------------------------------------------------+
 ```
 
 ### Series and score
@@ -211,11 +251,16 @@ Measured on the presentation laptop (Intel Iris Xe, 2400 x 1350 at 150% scaling)
 
 ### Several boards at once
 
-- **boards - / +** (or `,` / `.`) runs 1 to 9 matches side by side between the same two
-  agents, in a grid (one row up to 3, then 2 x 2, 3 x 2, 3 x 3). Each board is a table
+- **Boards at once - / +** (or `,` / `.`) steps through 1 to 9, then 12, 16, 20, 25,
+  30, 36, 42, 49, 64, 81, 100, 121, 144, 196 and 256 matches between the same two
+  agents. Up to 9 they stand in rows going back (one row up to 3, then 2 x 2, 3 x 2,
+  3 x 3); past 9 they stack into a flat wall facing the camera, a little wider than
+  tall. Each board is a table
   entity with its own `Game` and engine thread; Play, Pause, Step and Reset apply to
   all of them, and every result goes into the one score.
-- With several rows the camera tilts down so the back rows show over the front ones.
+- With several rows going back the camera tilts down so the back rows show over the
+  front ones; a wall is seen straight on. Every board runs its own engine thread, so
+  hundreds of boards share the CPU and each agent gets less thinking per move.
 - The status line summarises all boards; the move list shows board 1. The hovering
   "thinking" disc is shown only with a single board.
 

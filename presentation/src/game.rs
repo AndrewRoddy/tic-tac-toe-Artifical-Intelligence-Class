@@ -29,8 +29,8 @@ const OPENING_STAGGER: f32 = 0.12;
 /// Where unused pool discs wait: far below the table, out of every camera's view.
 const PARKED: Vec3 = Vec3::new(0.0, -200.0, 0.0);
 
-/// Most boards shown at once (a 3 x 3 grid).
-pub const MAX_BOARDS: usize = 9;
+/// The board counts `,` and `.` step through. Past nine the boards stack into a wall.
+pub const BOARD_COUNTS: [usize; 24] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 16, 20, 25, 30, 36, 42, 49, 64, 81, 100, 121, 144, 196, 256];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Player {
@@ -84,21 +84,6 @@ pub enum Action {
     Reset,
     /// Opens the presentation (see `present.rs`).
     Present,
-    /// Switches between the 3D HUD and the flat backup UI.
-    ToggleUi,
-}
-
-/// Which arena UI is showing: the 3D HUD (`solid`) or the flat backup, which also
-/// turns off bloom and shadows for slower machines.
-#[derive(Resource)]
-pub struct UiStyle {
-    pub solid: bool,
-}
-
-impl Default for UiStyle {
-    fn default() -> Self {
-        Self { solid: true }
-    }
 }
 
 #[derive(Resource, Default)]
@@ -350,7 +335,6 @@ impl Plugin for GamePlugin {
         app.init_resource::<Settings>()
             .init_resource::<Pending>()
             .init_resource::<Series>()
-            .init_resource::<UiStyle>()
             .add_systems(Startup, |mut commands: Commands, settings: Res<Settings>| {
                 spawn_table(&mut commands, 0, &settings);
             })
@@ -378,7 +362,6 @@ fn keyboard(keys: Res<ButtonInput<KeyCode>>, mut pending: ResMut<Pending>) {
         (KeyCode::Period, Action::MoreBoards),
         (KeyCode::Comma, Action::FewerBoards),
         (KeyCode::KeyP, Action::Present),
-        (KeyCode::KeyU, Action::ToggleUi),
     ];
     for (key, action) in bindings {
         if keys.just_pressed(key) {
@@ -456,7 +439,6 @@ fn handle_actions(
     mut series: ResMut<Series>,
     mut games: Query<&mut Game>,
     mut mode: ResMut<NextState<Mode>>,
-    mut style: ResMut<UiStyle>,
 ) {
     let actions: Vec<Action> = pending.0.drain(..).collect();
     // A new pairing or board size throws away the current games.
@@ -484,8 +466,12 @@ fn handle_actions(
             Action::Slower => settings.time = (settings.time + 1).min(TIMES.len() - 1),
             Action::Faster => settings.time = settings.time.saturating_sub(1),
             Action::CycleOpening => settings.opening = (settings.opening + 1) % OPENINGS.len(),
-            Action::MoreBoards => settings.boards = (settings.boards + 1).min(MAX_BOARDS),
-            Action::FewerBoards => settings.boards = settings.boards.saturating_sub(1).max(1),
+            Action::MoreBoards => {
+                settings.boards = BOARD_COUNTS.iter().copied().find(|&count| count > settings.boards).unwrap_or(settings.boards);
+            }
+            Action::FewerBoards => {
+                settings.boards = BOARD_COUNTS.iter().rev().copied().find(|&count| count < settings.boards).unwrap_or(1);
+            }
             Action::PlayPause => {
                 let any_moving = games.iter().any(Game::moving);
                 let any_paused = games.iter().any(|game| game.in_progress() && !game.moving());
@@ -529,7 +515,6 @@ fn handle_actions(
                 }
             }
             Action::Present => mode.set(Mode::Slides),
-            Action::ToggleUi => style.solid = !style.solid,
             Action::Reset => {
                 for mut game in &mut games {
                     reset(&mut commands, &settings, &mut game);

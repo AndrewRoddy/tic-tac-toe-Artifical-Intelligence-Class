@@ -126,7 +126,8 @@ fn celebrate(
     discs: Query<(Entity, &Disc, &Transform)>,
 ) {
     for win in won.read() {
-        if !settings.animated() {
+        // A wall of boards wins many times a second: the glow alone marks those.
+        if !settings.animated() || settings.boards > 9 {
             continue;
         }
         let seat = win.player.seat();

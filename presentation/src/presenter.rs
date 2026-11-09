@@ -17,6 +17,9 @@ const TALK_SECONDS: f32 = 600.0;
 #[derive(Resource, Default)]
 struct Presenter {
     window: Option<Entity>,
+    /// The window's camera and UI root: not children of the window (a UI root under a
+    /// non-UI parent is never laid out), so they are despawned with it by hand.
+    parts: Vec<Entity>,
     /// When the talk clock started (first time the slides opened).
     started: Option<f32>,
     /// When the current slide was first shown, and which slide that was.
@@ -61,12 +64,18 @@ fn text(value: &str, size: f32, colour: Color) -> impl Bundle {
     )
 }
 
-fn toggle(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>, mut presenter: ResMut<Presenter>) {
-    if !keys.just_pressed(KeyCode::KeyN) {
+fn toggle(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>, mut presenter: ResMut<Presenter>, mut opened: Local<bool>) {
+    // Developer aid: C4_NOTES_SHOT opens the window by itself (for screenshots).
+    let auto = !*opened && std::env::var("C4_NOTES_SHOT").is_ok();
+    *opened = true;
+    if !keys.just_pressed(KeyCode::KeyN) && !auto {
         return;
     }
     if let Some(window) = presenter.window.take() {
         commands.entity(window).despawn();
+        for part in presenter.parts.drain(..) {
+            commands.entity(part).despawn();
+        }
         return;
     }
     let window = commands
@@ -84,11 +93,9 @@ fn toggle(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>, mut presenter
                 ..default()
             },
             RenderTarget::Window(WindowRef::Entity(window)),
-            // Despawned with the window.
-            ChildOf(window),
         ))
         .id();
-    commands
+    let root = commands
         .spawn((
             Node {
                 width: percent(100),
@@ -99,7 +106,6 @@ fn toggle(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>, mut presenter
                 ..default()
             },
             UiTargetCamera(camera),
-            ChildOf(window),
         ))
         .with_children(|root| {
             root.spawn(Node {
@@ -114,8 +120,10 @@ fn toggle(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>, mut presenter
             root.spawn((text("", 18.0, MUTED), Readout::SlideClock));
             root.spawn((text("", 24.0, TEXT), Readout::Notes, Node { flex_grow: 1.0, ..default() }));
             root.spawn((text("", 18.0, FAINT), Readout::Next));
-        });
+        })
+        .id();
     presenter.window = Some(window);
+    presenter.parts = vec![camera, root];
 }
 
 /// Restarts the slide timer whenever the slide changes.
@@ -150,7 +158,17 @@ fn update(
     let budget = f32::from(u16::try_from(slide.seconds).unwrap_or(u16::MAX));
     for (readout, mut text, mut colour) in &mut texts {
         let (value, tint) = match readout {
-            Readout::Slide => (format!("{} / {}   {}", deck.index + 1, SLIDES.len(), slide.title), ACCENT),
+            Readout::Slide => (
+                format!(
+                    "{} / {}   {}    \u{b7}    step {} of {}",
+                    deck.index + 1,
+                    SLIDES.len(),
+                    slide.title,
+                    deck.beat + 1,
+                    slide.beats.len()
+                ),
+                ACCENT,
+            ),
             Readout::Clock => {
                 let late = total > TALK_SECONDS;
                 (format!("{} / {}", clock(total), clock(TALK_SECONDS)), if late { RED } else { TEXT })
@@ -164,12 +182,18 @@ fn update(
                     if over { RED } else { MUTED },
                 )
             }
-            Readout::Notes => (slide.notes.to_owned(), TEXT),
+            Readout::Notes => (
+                slide.beats.get(deck.beat).map_or_else(String::new, |beat| beat.say.to_owned()),
+                TEXT,
+            ),
             Readout::Next => (
-                SLIDES.get(deck.index + 1).map_or_else(
-                    || "next: the arena (Esc)".to_owned(),
-                    |next| format!("next: {}", next.title),
-                ),
+                match slide.beats.get(deck.beat + 1) {
+                    Some(beat) => format!("next press: {}", beat.say),
+                    None => SLIDES.get(deck.index + 1).map_or_else(
+                        || "next press: back to the arena".to_owned(),
+                        |next| format!("next press: new slide, {}", next.title),
+                    ),
+                },
                 FAINT,
             ),
         };
@@ -183,10 +207,13 @@ fn update(
 }
 
 /// The window may be closed with its own close button.
-fn forget_closed(mut presenter: ResMut<Presenter>, windows: Query<(), With<Window>>) {
+fn forget_closed(mut commands: Commands, mut presenter: ResMut<Presenter>, windows: Query<(), With<Window>>) {
     if let Some(window) = presenter.window
         && windows.get(window).is_err()
     {
         presenter.window = None;
+        for part in presenter.parts.drain(..) {
+            commands.entity(part).despawn();
+        }
     }
 }

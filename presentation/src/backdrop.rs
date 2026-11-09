@@ -158,7 +158,9 @@ fn spawn(
             Backdrop,
             Mascot,
             Transform::from_translation(at).with_rotation(turn).with_scale(Vec3::splat(scale)),
-            Visibility::default(),
+            // Hidden: the slides' own visuals are centre stage now, and a board drifting
+            // behind them was distracting. Only the far drifting discs remain.
+            Visibility::Hidden,
         ))
         .with_children(|board| {
             for (mesh, _, transform) in parts {

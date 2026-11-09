@@ -1,5 +1,5 @@
-//! Everything the arena's UI says, computed once a frame from the game state. Both the
-//! 3D HUD (`hud.rs`) and the flat backup UI (`ui.rs`) draw from this, so they always agree.
+//! Everything the arena's UI says, computed once a frame from the game state, so the
+//! screen UI (`ui.rs`) only has to draw it.
 
 use bevy::prelude::*;
 
@@ -60,11 +60,13 @@ pub struct ReadoutSet;
 
 pub fn time_label(seconds: f32) -> String {
     if seconds <= 0.001 {
-        "1 ms / move".to_owned()
+        "1 ms".to_owned()
     } else if seconds < 0.1 {
-        format!("{:.0} ms / move", seconds * 1000.0)
+        format!("{:.0} ms", seconds * 1000.0)
+    } else if seconds < 1.0 {
+        format!("{seconds:.2} s")
     } else {
-        format!("{seconds:.2} s / move")
+        format!("{seconds:.0} s")
     }
 }
 
@@ -72,7 +74,7 @@ fn card(agent: usize) -> Card {
     let info = &ROSTER[agent];
     Card {
         title: info.title.to_owned(),
-        family: format!("{}  \u{b7}  id: {}", info.family.to_lowercase(), info.entrant.name()),
+        family: info.family.to_lowercase(),
         how: info.how.to_owned(),
         stats: [
             format!("9x8 tournament Elo: {}", info.elo.round()),
@@ -101,7 +103,7 @@ fn compute(time: Res<Time>, settings: Res<Settings>, series: Res<Series>, games:
     let r = readout.bypass_change_detection();
     let size = LADDER[settings.size];
     let mut changed = false;
-    changed |= put(&mut r.size, format!("{} x {}  {}", size.columns, size.rows, size.label));
+    changed |= put(&mut r.size, format!("{} \u{d7} {}   \u{b7}   {}", size.columns, size.rows, size.label));
     changed |= put(&mut r.time, time_label(settings.per_move()));
     changed |= put(&mut r.boards, settings.boards.to_string());
     let play = match game.phase {
@@ -113,8 +115,8 @@ fn compute(time: Res<Time>, settings: Res<Settings>, series: Res<Series>, games:
     };
     changed |= put(&mut r.play, play.to_owned());
     let opening = match OPENINGS[settings.opening] {
-        0 => "empty board".to_owned(),
-        stones => format!("random {stones} stones"),
+        0 => "Empty board".to_owned(),
+        stones => format!("{stones} random discs"),
     };
     changed |= put(&mut r.opening, opening);
 
@@ -129,21 +131,21 @@ fn compute(time: Res<Time>, settings: Res<Settings>, series: Res<Series>, games:
         let state = if series.playing {
             "playing"
         } else if count(Phase::Paused) > 0 {
-            "paused: Space to resume, S to step"
+            "paused"
         } else {
-            "press Play (Space) to start every board"
+            "press Play to start them all"
         };
         format!("{} boards, {state}.   {running} mid-game, {} finished.", settings.boards, count(Phase::Finished))
     } else {
         match game.phase {
-            Phase::Idle => "Pick two agents and a board size, then press Play (Space).".to_owned(),
+            Phase::Idle => "Pick an agent for each side, then press Play.".to_owned(),
             Phase::Starting => "Building agents...".to_owned(),
             Phase::Running if !settings.animated() => "Racing: one match after another as fast as they can think.".to_owned(),
             Phase::Running | Phase::Paused if game.waiting => {
                 format!("{} ({}) is thinking...{last}", game.to_move.name(), agent(game.to_move))
             }
             Phase::Running => format!("{} to move{last}", game.to_move.name()),
-            Phase::Paused => format!("Paused: Space to resume, S to step{last}"),
+            Phase::Paused => format!("Paused. Play resumes, Step plays one move.{last}"),
             Phase::Finished => {
                 let result = match game.outcome {
                     Some(Outcome::Winner(player)) => format!("{} ({}) wins!", player.name(), agent(player)),
